@@ -227,7 +227,7 @@ aborting the run, so a multi-hour execution is not lost to one unavailable backb
 
 ## Citation and license
 
-This paper is under review. We would appreciate citations to the following paper:
+This paper is under review.
 
 The code in this repository is released for review and reuse under the terms stated
 in `LICENSE`.
