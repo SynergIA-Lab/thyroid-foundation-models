@@ -1,0 +1,45 @@
+Analysis cohort: 496 images from 178 patients.
+Reference encoder: DINOv2 ViT-B/14 (86.6M parameters)
+
+--- Pre-computing ROI crops (shared by every encoder) ---
+[crops] Cached to phase2_roi_crops.npz (fixed=(496, 224, 224, 3), dynamic=(496, 224, 224, 3))
+
+--- Extracting Quantitative ROI Metrics ---
+ROI Quantitative Metrics saved to: outputs\phase2\phase2_roi_quantitative_metrics.csv
+ROI Summary Metrics saved to: outputs\phase2\phase2_roi_metrics_summary_by_class.csv
+
+--- ResNet-50 (ImageNet) | FIXED ROI ---
+[resnet50/fixed] saved resnet50_features_fixed.npz (cls=(496, 3072), patch=(496, 49, 2048), 70 ms/image)
+
+--- ResNet-50 (ImageNet) | DYNAMIC ROI ---
+[resnet50/dynamic] saved resnet50_features_dynamic.npz (cls=(496, 3072), patch=(496, 49, 2048), 70 ms/image)
+
+--- DINOv2 ViT-B/14 | FIXED ROI ---
+[dinov2/fixed] saved dinov2_features_fixed.npz (cls=(496, 3072), patch=(496, 256, 768), 221 ms/image)
+
+--- DINOv2 ViT-B/14 | DYNAMIC ROI ---
+[dinov2/dynamic] saved dinov2_features_dynamic.npz (cls=(496, 3072), patch=(496, 256, 768), 222 ms/image)
+
+--- CLIP ViT-B/16 | FIXED ROI ---
+[clip/fixed] saved clip_features_fixed.npz (cls=(496, 3072), patch=(496, 196, 768), 168 ms/image)
+
+--- CLIP ViT-B/16 | DYNAMIC ROI ---
+[clip/dynamic] saved clip_features_dynamic.npz (cls=(496, 3072), patch=(496, 196, 768), 168 ms/image)
+
+--- BiomedCLIP ViT-B/16 | FIXED ROI ---
+[biomedclip/fixed] saved biomedclip_features_fixed.npz (cls=(496, 3072), patch=(496, 196, 768), 167 ms/image)
+
+--- BiomedCLIP ViT-B/16 | DYNAMIC ROI ---
+[biomedclip/dynamic] saved biomedclip_features_dynamic.npz (cls=(496, 3072), patch=(496, 196, 768), 168 ms/image)
+
+--- RAD-DINO ViT-B/14 | FIXED ROI ---
+[raddino/fixed] saved raddino_features_fixed.npz (cls=(496, 3072), patch=(496, 256, 768), 242 ms/image)
+
+--- RAD-DINO ViT-B/14 | DYNAMIC ROI ---
+[raddino/dynamic] saved raddino_features_dynamic.npz (cls=(496, 3072), patch=(496, 256, 768), 242 ms/image)
+[table] phase2_encoder_extraction_metrics.{csv,md,tex}
+
+Computational metrics saved to: outputs\phase2\phase2_computational_metrics.json
+[table] phase2_encoder_registry.{csv,md,tex}
+[figure] phase2_encoder_cost.png, phase2_encoder_cost.pdf
+[figure] phase2_roi_comparison.png, phase2_roi_comparison.pdf

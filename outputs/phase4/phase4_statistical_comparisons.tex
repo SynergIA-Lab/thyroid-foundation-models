@@ -1,0 +1,70 @@
+\begin{table}
+\caption{Paired contrasts at the patient level, corrected within family by Benjamini-Hochberg.}
+\label{tab:phase4-stats}
+\begin{tabular}{lllrrrrrrrrrlrr}
+\toprule
+metric & model\_a & model\_b & mean\_a & mean\_b & mean\_difference & sd\_difference\_across\_repeats & ci95\_low & ci95\_high & p\_repeat\_level\_ttest & n\_repeats & p\_fold\_level\_wilcoxon\_anticonservative & family & p\_adjusted\_bh & significant\_adjusted \\
+\midrule
+AUC & fixed ROI | Single ANTERIOR projection & fixed ROI | Gated attention pooling & 0.897856 & 0.868156 & 0.029700 & 0.013951 & 0.019720 & 0.039680 & 0.000085 & 10 & 0.000017 & aggregation|AUC & 0.000165 & True \\
+AUC & fixed ROI | Single ANTERIOR projection & fixed ROI | Mean pooling & 0.897856 & 0.854684 & 0.043172 & 0.019465 & 0.029248 & 0.057096 & 0.000062 & 10 & 0.000000 & aggregation|AUC & 0.000165 & True \\
+AUC & fixed ROI | Single ANTERIOR projection & fixed ROI | Max pooling & 0.897856 & 0.861866 & 0.035990 & 0.017237 & 0.023659 & 0.048321 & 0.000099 & 10 & 0.000001 & aggregation|AUC & 0.000165 & True \\
+AUC & fixed ROI | Gated attention pooling & fixed ROI | Mean pooling & 0.868156 & 0.854684 & 0.013472 & 0.012363 & 0.004628 & 0.022316 & 0.007322 & 10 & 0.000433 & aggregation|AUC & 0.009153 & True \\
+AUC & fixed ROI | Gated attention pooling & fixed ROI | Max pooling & 0.868156 & 0.861866 & 0.006290 & 0.012789 & -0.002859 & 0.015438 & 0.154332 & 10 & 0.152483 & aggregation|AUC & 0.154332 & False \\
+AUC & fixed ROI | Single ANTERIOR projection & dynamic ROI | Single ANTERIOR projection & 0.897856 & 0.858403 & 0.039453 & 0.016862 & 0.027391 & 0.051516 & 0.000041 & 10 & 0.000000 & roi|AUC & 0.000123 & True \\
+AUC & fixed ROI | Gated attention pooling & dynamic ROI | Gated attention pooling & 0.868156 & 0.823155 & 0.045001 & 0.012456 & 0.036090 & 0.053911 & 0.000001 & 10 & 0.000000 & roi|AUC & 0.000007 & True \\
+AUC & fixed ROI | Single ANTERIOR projection & resnet50 | fixed ROI | Single ANTERIOR projection & 0.897856 & 0.840368 & 0.057488 & 0.020272 & 0.042986 & 0.071989 & 0.000009 & 10 & 0.000000 & encoder|AUC & 0.000012 & True \\
+AUC & resnet50 | fixed ROI | Single ANTERIOR projection & resnet50 | dynamic ROI | Single ANTERIOR projection & 0.840368 & 0.813629 & 0.026740 & 0.016108 & 0.015217 & 0.038262 & 0.000528 & 10 & 0.000509 & roi|AUC & 0.001056 & True \\
+AUC & fixed ROI | Single ANTERIOR projection & clip | fixed ROI | Single ANTERIOR projection & 0.897856 & 0.877011 & 0.020845 & 0.010704 & 0.013188 & 0.028502 & 0.000167 & 10 & 0.002526 & encoder|AUC & 0.000167 & True \\
+AUC & clip | fixed ROI | Single ANTERIOR projection & clip | dynamic ROI | Single ANTERIOR projection & 0.877011 & 0.873164 & 0.003847 & 0.011077 & -0.004077 & 0.011771 & 0.300613 & 10 & 0.355961 & roi|AUC & 0.300613 & False \\
+AUC & fixed ROI | Single ANTERIOR projection & biomedclip | fixed ROI | Single ANTERIOR projection & 0.897856 & 0.843326 & 0.054530 & 0.014342 & 0.044270 & 0.064790 & 0.000001 & 10 & 0.000000 & encoder|AUC & 0.000002 & True \\
+AUC & biomedclip | fixed ROI | Single ANTERIOR projection & biomedclip | dynamic ROI | Single ANTERIOR projection & 0.843326 & 0.836921 & 0.006405 & 0.011967 & -0.002156 & 0.014965 & 0.124803 & 10 & 0.383302 & roi|AUC & 0.149763 & False \\
+AUC & fixed ROI | Single ANTERIOR projection & raddino | fixed ROI | Single ANTERIOR projection & 0.897856 & 0.759377 & 0.138479 & 0.032274 & 0.115392 & 0.161567 & 0.000000 & 10 & 0.000000 & encoder|AUC & 0.000001 & True \\
+AUC & raddino | fixed ROI | Single ANTERIOR projection & raddino | dynamic ROI | Single ANTERIOR projection & 0.759377 & 0.732784 & 0.026593 & 0.032914 & 0.003048 & 0.050138 & 0.030942 & 10 & 0.032868 & roi|AUC & 0.046413 & True \\
+PR-AUC & fixed ROI | Single ANTERIOR projection & fixed ROI | Gated attention pooling & 0.917608 & 0.885653 & 0.031955 & 0.013845 & 0.022051 & 0.041859 & 0.000046 & 10 & 0.000004 & aggregation|PR-AUC & 0.000128 & True \\
+PR-AUC & fixed ROI | Single ANTERIOR projection & fixed ROI | Mean pooling & 0.917608 & 0.873770 & 0.043838 & 0.020038 & 0.029504 & 0.058172 & 0.000069 & 10 & 0.000000 & aggregation|PR-AUC & 0.000128 & True \\
+PR-AUC & fixed ROI | Single ANTERIOR projection & fixed ROI | Max pooling & 0.917608 & 0.878532 & 0.039075 & 0.018102 & 0.026126 & 0.052025 & 0.000077 & 10 & 0.000000 & aggregation|PR-AUC & 0.000128 & True \\
+PR-AUC & fixed ROI | Gated attention pooling & fixed ROI | Mean pooling & 0.885653 & 0.873770 & 0.011883 & 0.012734 & 0.002774 & 0.020993 & 0.016192 & 10 & 0.008588 & aggregation|PR-AUC & 0.020241 & True \\
+PR-AUC & fixed ROI | Gated attention pooling & fixed ROI | Max pooling & 0.885653 & 0.878532 & 0.007121 & 0.013260 & -0.002365 & 0.016606 & 0.123699 & 10 & 0.269510 & aggregation|PR-AUC & 0.123699 & False \\
+PR-AUC & fixed ROI | Single ANTERIOR projection & dynamic ROI | Single ANTERIOR projection & 0.917608 & 0.889579 & 0.028029 & 0.014312 & 0.017791 & 0.038268 & 0.000160 & 10 & 0.000000 & roi|PR-AUC & 0.000481 & True \\
+PR-AUC & fixed ROI | Gated attention pooling & dynamic ROI | Gated attention pooling & 0.885653 & 0.838768 & 0.046885 & 0.015220 & 0.035998 & 0.057773 & 0.000004 & 10 & 0.000000 & roi|PR-AUC & 0.000027 & True \\
+PR-AUC & fixed ROI | Single ANTERIOR projection & resnet50 | fixed ROI | Single ANTERIOR projection & 0.917608 & 0.867886 & 0.049722 & 0.020228 & 0.035252 & 0.064193 & 0.000028 & 10 & 0.000000 & encoder|PR-AUC & 0.000037 & True \\
+PR-AUC & resnet50 | fixed ROI | Single ANTERIOR projection & resnet50 | dynamic ROI | Single ANTERIOR projection & 0.867886 & 0.842566 & 0.025319 & 0.017700 & 0.012658 & 0.037981 & 0.001439 & 10 & 0.000163 & roi|PR-AUC & 0.002879 & True \\
+PR-AUC & fixed ROI | Single ANTERIOR projection & clip | fixed ROI | Single ANTERIOR projection & 0.917608 & 0.901980 & 0.015627 & 0.010427 & 0.008168 & 0.023086 & 0.001060 & 10 & 0.035391 & encoder|PR-AUC & 0.001060 & True \\
+PR-AUC & clip | fixed ROI | Single ANTERIOR projection & clip | dynamic ROI | Single ANTERIOR projection & 0.901980 & 0.906633 & -0.004652 & 0.011258 & -0.012706 & 0.003401 & 0.223676 & 10 & 0.916186 & roi|PR-AUC & 0.268412 & False \\
+PR-AUC & fixed ROI | Single ANTERIOR projection & biomedclip | fixed ROI | Single ANTERIOR projection & 0.917608 & 0.850914 & 0.066694 & 0.017715 & 0.054021 & 0.079366 & 0.000001 & 10 & 0.000000 & encoder|PR-AUC & 0.000003 & True \\
+PR-AUC & biomedclip | fixed ROI | Single ANTERIOR projection & biomedclip | dynamic ROI | Single ANTERIOR projection & 0.850914 & 0.855700 & -0.004786 & 0.018648 & -0.018126 & 0.008554 & 0.437993 & 10 & 0.431911 & roi|PR-AUC & 0.437993 & False \\
+PR-AUC & fixed ROI | Single ANTERIOR projection & raddino | fixed ROI | Single ANTERIOR projection & 0.917608 & 0.803870 & 0.113738 & 0.032515 & 0.090478 & 0.136997 & 0.000002 & 10 & 0.000000 & encoder|PR-AUC & 0.000003 & True \\
+PR-AUC & raddino | fixed ROI | Single ANTERIOR projection & raddino | dynamic ROI | Single ANTERIOR projection & 0.803870 & 0.787326 & 0.016544 & 0.028842 & -0.004088 & 0.037177 & 0.103088 & 10 & 0.151503 & roi|PR-AUC & 0.154632 & False \\
+MCC & fixed ROI | Single ANTERIOR projection & fixed ROI | Gated attention pooling & 0.636192 & 0.567953 & 0.068239 & 0.045857 & 0.035435 & 0.101042 & 0.001111 & 10 & 0.001163 & aggregation|MCC & 0.002778 & True \\
+MCC & fixed ROI | Single ANTERIOR projection & fixed ROI | Mean pooling & 0.636192 & 0.546764 & 0.089428 & 0.047564 & 0.055403 & 0.123453 & 0.000217 & 10 & 0.000180 & aggregation|MCC & 0.001083 & True \\
+MCC & fixed ROI | Single ANTERIOR projection & fixed ROI | Max pooling & 0.636192 & 0.574993 & 0.061198 & 0.056609 & 0.020703 & 0.101694 & 0.007644 & 10 & 0.006097 & aggregation|MCC & 0.012740 & True \\
+MCC & fixed ROI | Gated attention pooling & fixed ROI | Mean pooling & 0.567953 & 0.546764 & 0.021189 & 0.025158 & 0.003192 & 0.039187 & 0.025902 & 10 & 0.138470 & aggregation|MCC & 0.032377 & True \\
+MCC & fixed ROI | Gated attention pooling & fixed ROI | Max pooling & 0.567953 & 0.574993 & -0.007040 & 0.046082 & -0.040005 & 0.025925 & 0.640548 & 10 & 0.573669 & aggregation|MCC & 0.640548 & False \\
+MCC & fixed ROI | Single ANTERIOR projection & dynamic ROI | Single ANTERIOR projection & 0.636192 & 0.559382 & 0.076810 & 0.069016 & 0.027439 & 0.126181 & 0.006522 & 10 & 0.000583 & roi|MCC & 0.019565 & True \\
+MCC & fixed ROI | Gated attention pooling & dynamic ROI | Gated attention pooling & 0.567953 & 0.485149 & 0.082804 & 0.057552 & 0.041634 & 0.123974 & 0.001386 & 10 & 0.010127 & roi|MCC & 0.008318 & True \\
+MCC & fixed ROI | Single ANTERIOR projection & resnet50 | fixed ROI | Single ANTERIOR projection & 0.636192 & 0.519784 & 0.116408 & 0.070067 & 0.066285 & 0.166531 & 0.000525 & 10 & 0.000007 & encoder|MCC & 0.000700 & True \\
+MCC & resnet50 | fixed ROI | Single ANTERIOR projection & resnet50 | dynamic ROI | Single ANTERIOR projection & 0.519784 & 0.460588 & 0.059196 & 0.069814 & 0.009254 & 0.109137 & 0.025152 & 10 & 0.007844 & roi|MCC & 0.037727 & True \\
+MCC & fixed ROI | Single ANTERIOR projection & clip | fixed ROI | Single ANTERIOR projection & 0.636192 & 0.561483 & 0.074708 & 0.036970 & 0.048261 & 0.101155 & 0.000127 & 10 & 0.004952 & encoder|MCC & 0.000253 & True \\
+MCC & clip | fixed ROI | Single ANTERIOR projection & clip | dynamic ROI | Single ANTERIOR projection & 0.561483 & 0.611183 & -0.049700 & 0.050279 & -0.085668 & -0.013732 & 0.012203 & 10 & 0.007897 & roi|MCC & 0.024407 & True \\
+MCC & fixed ROI | Single ANTERIOR projection & biomedclip | fixed ROI | Single ANTERIOR projection & 0.636192 & 0.591154 & 0.045038 & 0.042717 & 0.014480 & 0.075596 & 0.008742 & 10 & 0.054254 & encoder|MCC & 0.008742 & True \\
+MCC & biomedclip | fixed ROI | Single ANTERIOR projection & biomedclip | dynamic ROI | Single ANTERIOR projection & 0.591154 & 0.563420 & 0.027734 & 0.050034 & -0.008058 & 0.063526 & 0.113534 & 10 & 0.112605 & roi|MCC & 0.113534 & False \\
+MCC & fixed ROI | Single ANTERIOR projection & raddino | fixed ROI | Single ANTERIOR projection & 0.636192 & 0.374314 & 0.261877 & 0.062183 & 0.217394 & 0.306360 & 0.000000 & 10 & 0.000000 & encoder|MCC & 0.000001 & True \\
+MCC & raddino | fixed ROI | Single ANTERIOR projection & raddino | dynamic ROI | Single ANTERIOR projection & 0.374314 & 0.325010 & 0.049304 & 0.072976 & -0.002900 & 0.101508 & 0.061370 & 10 & 0.235938 & roi|MCC & 0.073644 & False \\
+Balanced Accuracy & fixed ROI | Single ANTERIOR projection & fixed ROI | Gated attention pooling & 0.814949 & 0.781990 & 0.032959 & 0.024804 & 0.015215 & 0.050703 & 0.002300 & 10 & 0.001457 & aggregation|Balanced Accuracy & 0.005751 & True \\
+Balanced Accuracy & fixed ROI | Single ANTERIOR projection & fixed ROI | Mean pooling & 0.814949 & 0.771705 & 0.043244 & 0.025312 & 0.025137 & 0.061351 & 0.000432 & 10 & 0.000203 & aggregation|Balanced Accuracy & 0.002158 & True \\
+Balanced Accuracy & fixed ROI | Single ANTERIOR projection & fixed ROI | Max pooling & 0.814949 & 0.785569 & 0.029380 & 0.028300 & 0.009136 & 0.049624 & 0.009484 & 10 & 0.007931 & aggregation|Balanced Accuracy & 0.015806 & True \\
+Balanced Accuracy & fixed ROI | Gated attention pooling & fixed ROI | Mean pooling & 0.781990 & 0.771705 & 0.010285 & 0.013988 & 0.000279 & 0.020292 & 0.045102 & 10 & 0.202231 & aggregation|Balanced Accuracy & 0.056377 & False \\
+Balanced Accuracy & fixed ROI | Gated attention pooling & fixed ROI | Max pooling & 0.781990 & 0.785569 & -0.003579 & 0.022223 & -0.019476 & 0.012318 & 0.622824 & 10 & 0.702163 & aggregation|Balanced Accuracy & 0.622824 & False \\
+Balanced Accuracy & fixed ROI | Single ANTERIOR projection & dynamic ROI | Single ANTERIOR projection & 0.814949 & 0.776539 & 0.038409 & 0.039777 & 0.009955 & 0.066864 & 0.013713 & 10 & 0.001138 & roi|Balanced Accuracy & 0.032402 & True \\
+Balanced Accuracy & fixed ROI | Gated attention pooling & dynamic ROI | Gated attention pooling & 0.781990 & 0.736599 & 0.045390 & 0.027404 & 0.025787 & 0.064994 & 0.000536 & 10 & 0.002908 & roi|Balanced Accuracy & 0.003218 & True \\
+Balanced Accuracy & fixed ROI | Single ANTERIOR projection & resnet50 | fixed ROI | Single ANTERIOR projection & 0.814949 & 0.752530 & 0.062419 & 0.034444 & 0.037779 & 0.087058 & 0.000283 & 10 & 0.000004 & encoder|Balanced Accuracy & 0.000377 & True \\
+Balanced Accuracy & resnet50 | fixed ROI | Single ANTERIOR projection & resnet50 | dynamic ROI | Single ANTERIOR projection & 0.752530 & 0.725500 & 0.027030 & 0.036192 & 0.001140 & 0.052920 & 0.042476 & 10 & 0.015312 & roi|Balanced Accuracy & 0.063714 & False \\
+Balanced Accuracy & fixed ROI | Single ANTERIOR projection & clip | fixed ROI | Single ANTERIOR projection & 0.814949 & 0.775471 & 0.039478 & 0.021297 & 0.024243 & 0.054713 & 0.000240 & 10 & 0.001456 & encoder|Balanced Accuracy & 0.000377 & True \\
+Balanced Accuracy & clip | fixed ROI | Single ANTERIOR projection & clip | dynamic ROI | Single ANTERIOR projection & 0.775471 & 0.801214 & -0.025743 & 0.027588 & -0.045479 & -0.006007 & 0.016201 & 10 & 0.006745 & roi|Balanced Accuracy & 0.032402 & True \\
+Balanced Accuracy & fixed ROI | Single ANTERIOR projection & biomedclip | fixed ROI | Single ANTERIOR projection & 0.814949 & 0.786836 & 0.028113 & 0.020435 & 0.013494 & 0.042732 & 0.001849 & 10 & 0.015215 & encoder|Balanced Accuracy & 0.001849 & True \\
+Balanced Accuracy & biomedclip | fixed ROI | Single ANTERIOR projection & biomedclip | dynamic ROI | Single ANTERIOR projection & 0.786836 & 0.774262 & 0.012574 & 0.023672 & -0.004360 & 0.029508 & 0.127325 & 10 & 0.128006 & roi|Balanced Accuracy & 0.127325 & False \\
+Balanced Accuracy & fixed ROI | Single ANTERIOR projection & raddino | fixed ROI | Single ANTERIOR projection & 0.814949 & 0.680275 & 0.134674 & 0.038537 & 0.107107 & 0.162242 & 0.000002 & 10 & 0.000000 & encoder|Balanced Accuracy & 0.000006 & True \\
+Balanced Accuracy & raddino | fixed ROI | Single ANTERIOR projection & raddino | dynamic ROI | Single ANTERIOR projection & 0.680275 & 0.657647 & 0.022628 & 0.039394 & -0.005553 & 0.050808 & 0.102685 & 10 & 0.302181 & roi|Balanced Accuracy & 0.123222 & False \\
+\bottomrule
+\end{tabular}
+\end{table}

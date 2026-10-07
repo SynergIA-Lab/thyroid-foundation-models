@@ -1,0 +1,21 @@
+=== Phase 1: Data Preparation and Patient-Level Balancing ===
+Total raw images parsed into Master Table: 496
+Master Table successfully saved to: outputs/phase1/phase1_master_table.csv
+
+Original patient distribution across classes:
+class
+diffuse_goiter          74
+multinodular_goiter    104
+Name: patient_id, dtype: int64
+
+Cohort strategy: FULL cohort retained (178 patients). Imbalance handled by class weighting downstream.
+
+Total patients after balancing: 178
+Total image samples after balancing: 496
+
+Nested 5x5 splits (StratifiedGroupKFold) generated and saved to: outputs/phase1/phase1_nested_cv_splits.json
+[integrity] 50 folds verified: no patient appears on both sides of any outer or inner split.
+[splits] outer validation blocks: 87-107 images; inner calibration blocks: 89-104 images.
+Cohort demographics saved to: outputs/phase1/phase1_demographics_table.csv
+[confounder] age Mann-Whitney p = 1.652e-06 (median 56 vs 43 years)
+Balancing chart successfully saved to: outputs/phase1/phase1_balancing_plot.png

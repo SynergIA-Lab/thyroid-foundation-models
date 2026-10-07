@@ -1,0 +1,20 @@
+\begin{table}
+\caption{Encoder comparison with the classification head held fixed. Differences are therefore attributable to the frozen representation rather than to the downstream model.}
+\label{tab:phase3-encoders}
+\begin{tabular}{llllllll}
+\toprule
+encoder & pre\_training\_domain & pre\_training\_objective & roi & AUC & PR-AUC & MCC & F1 \\
+\midrule
+BiomedCLIP ViT-B/16 & medical & vision-language & dynamic & 0.7607 ± 0.0141 & 0.8098 ± 0.0115 & 0.3739 ± 0.0351 & 0.6958 ± 0.0481 \\
+CLIP ViT-B/16 & natural & vision-language & dynamic & 0.7811 ± 0.0140 & 0.8308 ± 0.0098 & 0.4168 ± 0.0298 & 0.7254 ± 0.0339 \\
+DINOv2 ViT-B/14 & natural & self-supervised & dynamic & 0.8006 ± 0.0187 & 0.8403 ± 0.0154 & 0.4565 ± 0.0389 & 0.7564 ± 0.0185 \\
+RAD-DINO ViT-B/14 & medical & self-supervised & dynamic & 0.7489 ± 0.0238 & 0.8080 ± 0.0179 & 0.3544 ± 0.0371 & 0.6920 ± 0.0388 \\
+ResNet-50 (ImageNet) & natural & supervised & dynamic & 0.7435 ± 0.0159 & 0.8083 ± 0.0162 & 0.3303 ± 0.0318 & 0.6694 ± 0.0247 \\
+BiomedCLIP ViT-B/16 & medical & vision-language & fixed & 0.7813 ± 0.0188 & 0.8153 ± 0.0209 & 0.4104 ± 0.0320 & 0.7453 ± 0.0256 \\
+CLIP ViT-B/16 & natural & vision-language & fixed & 0.7986 ± 0.0208 & 0.8369 ± 0.0207 & 0.4472 ± 0.0400 & 0.7577 ± 0.0195 \\
+DINOv2 ViT-B/14 & natural & self-supervised & fixed & 0.8336 ± 0.0142 & 0.8703 ± 0.0111 & 0.5044 ± 0.0342 & 0.7853 ± 0.0248 \\
+RAD-DINO ViT-B/14 & medical & self-supervised & fixed & 0.7601 ± 0.0184 & 0.8041 ± 0.0231 & 0.3692 ± 0.0335 & 0.7070 ± 0.0440 \\
+ResNet-50 (ImageNet) & natural & supervised & fixed & 0.7760 ± 0.0212 & 0.8327 ± 0.0201 & 0.4013 ± 0.0368 & 0.7110 ± 0.0186 \\
+\bottomrule
+\end{tabular}
+\end{table}

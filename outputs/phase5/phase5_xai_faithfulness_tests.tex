@@ -1,0 +1,25 @@
+\begin{table}
+\caption{Faithfulness of saliency maps against area-matched controls}
+\begin{tabular}{llllrrrrrrrlrr}
+\toprule
+saliency\_map & test & statistic & control & value & control\_value & advantage & advantage\_sd & pct\_images\_favourable & p\_wilcoxon\_paired & is\_primary & family & p\_adjusted\_bh & significant\_adjusted \\
+\midrule
+rollout & deletion & curve\_area & contiguous & 0.174700 & 0.133067 & 0.041633 & 0.048968 & 0.838384 & 0.000000 & True & deletion|curve\_area & 0.000000 & True \\
+rollout & deletion & curve\_area & dispersed & 0.174700 & 0.138126 & 0.036574 & 0.043756 & 0.939394 & 0.000000 & False & deletion|curve\_area & 0.000000 & True \\
+rollout & deletion & point\_20pct & contiguous & 0.176351 & 0.145076 & 0.031275 & 0.045317 & 0.808081 & 0.000000 & False & deletion|point\_20pct & 0.000000 & True \\
+rollout & deletion & point\_20pct & dispersed & 0.176351 & 0.143629 & 0.032723 & 0.047583 & 0.888889 & 0.000000 & False & deletion|point\_20pct & 0.000000 & True \\
+rollout & insertion & curve\_area & contiguous & 0.826712 & 0.825547 & 0.001165 & 0.001653 & 0.797980 & 0.000000 & True & insertion|curve\_area & 0.000000 & True \\
+rollout & insertion & curve\_area & dispersed & 0.826712 & 0.825289 & 0.001423 & 0.004114 & 0.737374 & 0.000078 & False & insertion|curve\_area & 0.000104 & True \\
+rollout & insertion & point\_20pct & contiguous & 0.826007 & 0.825458 & 0.000549 & 0.000923 & 0.797980 & 0.000000 & False & insertion|point\_20pct & 0.000000 & True \\
+rollout & insertion & point\_20pct & dispersed & 0.826007 & 0.824030 & 0.001977 & 0.003874 & 0.818182 & 0.000000 & False & insertion|point\_20pct & 0.000000 & True \\
+gradient & deletion & curve\_area & contiguous & 0.113474 & 0.160554 & -0.047079 & 0.070615 & 0.171717 & 0.000000 & False & deletion|curve\_area & 0.000000 & True \\
+gradient & deletion & curve\_area & dispersed & 0.113474 & 0.139019 & -0.025544 & 0.094893 & 0.373737 & 0.004209 & False & deletion|curve\_area & 0.004209 & True \\
+gradient & deletion & point\_20pct & contiguous & 0.115025 & 0.171281 & -0.056256 & 0.089666 & 0.161616 & 0.000000 & False & deletion|point\_20pct & 0.000000 & True \\
+gradient & deletion & point\_20pct & dispersed & 0.115025 & 0.142234 & -0.027209 & 0.113130 & 0.414141 & 0.010837 & False & deletion|point\_20pct & 0.010837 & True \\
+gradient & insertion & curve\_area & contiguous & 0.825614 & 0.826501 & -0.000888 & 0.002183 & 0.252525 & 0.000000 & False & insertion|curve\_area & 0.000000 & True \\
+gradient & insertion & curve\_area & dispersed & 0.825614 & 0.825935 & -0.000321 & 0.004092 & 0.414141 & 0.140777 & False & insertion|curve\_area & 0.140777 & False \\
+gradient & insertion & point\_20pct & contiguous & 0.824829 & 0.825605 & -0.000775 & 0.001270 & 0.232323 & 0.000000 & False & insertion|point\_20pct & 0.000000 & True \\
+gradient & insertion & point\_20pct & dispersed & 0.824829 & 0.824405 & 0.000424 & 0.004026 & 0.545455 & 0.476453 & False & insertion|point\_20pct & 0.476453 & False \\
+\bottomrule
+\end{tabular}
+\end{table}

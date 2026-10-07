@@ -1,0 +1,15 @@
+\begin{table}
+\caption{Pre-training domain and objective of each frozen encoder. The two axes are crossed so that domain and objective effects can be separated.}
+\label{tab:encoder-registry}
+\begin{tabular}{lllllrrl}
+\toprule
+encoder\_key & encoder & pre\_training\_domain & pre\_training\_objective & architecture\_family & patch\_grid & embedding\_dim & role\_in\_study \\
+\midrule
+resnet50 & ResNet-50 (ImageNet) & natural & supervised & cnn & 7 & 2048 & CONVENTIONAL TRANSFER-LEARNING FLOOR \\
+dinov2 & DINOv2 ViT-B/14 & natural & self-supervised & vit & 16 & 768 & reference foundation model (defines the dynamic ROI crops) \\
+clip & CLIP ViT-B/16 & natural & vision-language & vit & 14 & 768 & same domain as DINOv2, different objective \\
+biomedclip & BiomedCLIP ViT-B/16 & medical & vision-language & vit & 14 & 768 & same objective as CLIP, medical domain \\
+raddino & RAD-DINO ViT-B/14 & medical & self-supervised & vit & 16 & 768 & same objective as DINOv2, medical domain \\
+\bottomrule
+\end{tabular}
+\end{table}

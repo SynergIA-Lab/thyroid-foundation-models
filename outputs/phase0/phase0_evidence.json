@@ -1,0 +1,243 @@
+{
+    "modality": {
+        "technique": "planar thyroid scintigraphy (nuclear medicine)",
+        "note": "Confirmed by the DOSE ADMINISTERED (mCi) field, which records administered radiotracer activity. These are not ultrasound images.",
+        "views": [
+            "ANTERIOR",
+            "LAO",
+            "RAO"
+        ]
+    },
+    "image_inventory": {
+        "totals": {
+            "images": 496,
+            "patients": 178
+        },
+        "per_class": {
+            "diffuse_goiter": {
+                "images": 200,
+                "patients": 74,
+                "per_view": {
+                    "ANTERIOR": 74,
+                    "LAO": 63,
+                    "RAO": 63
+                }
+            },
+            "multinodular_goiter": {
+                "images": 296,
+                "patients": 104,
+                "per_view": {
+                    "ANTERIOR": 104,
+                    "LAO": 96,
+                    "RAO": 96
+                }
+            }
+        },
+        "imbalance_ratio_images": 1.48,
+        "imbalance_ratio_patients": 1.4054054054054055,
+        "n_patients_three_views": 159,
+        "n_patients_one_view": 19
+    },
+    "linkage_integrity": {
+        "n_patients_linked": 178,
+        "identifiers_match": true,
+        "label_mismatches": 0,
+        "oblique_flag_mismatches": []
+    },
+    "clinical_data": {
+        "total_patients_in_workbook": 178,
+        "diagnosis_distribution": {
+            "MULTINODULAR GOITER": 104,
+            "DIFFUSE GOITER": 74
+        },
+        "sex_distribution": {
+            "FEMALE": 165,
+            "MALE": 13
+        },
+        "age_stats": {
+            "mean": 49.52808988764045,
+            "std": 14.898595002684699,
+            "median": 51.0,
+            "min": 18.0,
+            "max": 86.0
+        },
+        "weight_kg_stats": {
+            "mean": 72.56741573033707,
+            "std": 18.155587926168515,
+            "median": 70.0,
+            "min": 43.0,
+            "max": 155.0
+        },
+        "height_cm_stats": {
+            "mean": 159.2191011235955,
+            "std": 12.020334714353151,
+            "median": 160.0,
+            "min": 53.0,
+            "max": 182.0
+        },
+        "dose_mci_stats": {
+            "mean": 4.37752808988764,
+            "std": 0.47745862280896756,
+            "median": 4.4,
+            "min": 3.0,
+            "max": 5.0
+        }
+    },
+    "class_stratification": {
+        "continuous": {
+            "AGE": {
+                "multinodular_goiter": {
+                    "n": 104,
+                    "mean": 54.08653846153846,
+                    "std": 13.57117918260139,
+                    "median": 55.5,
+                    "min": 18.0,
+                    "max": 86.0
+                },
+                "diffuse_goiter": {
+                    "n": 74,
+                    "mean": 43.12162162162162,
+                    "std": 14.391733455524687,
+                    "median": 43.0,
+                    "min": 18.0,
+                    "max": 77.0
+                },
+                "mann_whitney_u": 5471.5,
+                "p_value": 1.6516332244978635e-06,
+                "rank_biserial": 0.4219074844074844,
+                "is_confounder": true
+            },
+            "WEIGHT (Kg)": {
+                "multinodular_goiter": {
+                    "n": 104,
+                    "mean": 72.54807692307692,
+                    "std": 16.966488848276345,
+                    "median": 70.0,
+                    "min": 46.0,
+                    "max": 137.0
+                },
+                "diffuse_goiter": {
+                    "n": 74,
+                    "mean": 72.5945945945946,
+                    "std": 19.825899014955244,
+                    "median": 69.5,
+                    "min": 43.0,
+                    "max": 155.0
+                },
+                "mann_whitney_u": 3882.0,
+                "p_value": 0.9212095541945458,
+                "rank_biserial": 0.008835758835758822,
+                "is_confounder": false
+            },
+            "HEIGHT (cm)": {
+                "multinodular_goiter": {
+                    "n": 104,
+                    "mean": 158.125,
+                    "std": 14.355194249530292,
+                    "median": 160.0,
+                    "min": 53.0,
+                    "max": 180.0
+                },
+                "diffuse_goiter": {
+                    "n": 74,
+                    "mean": 160.75675675675674,
+                    "std": 7.44810504687852,
+                    "median": 160.0,
+                    "min": 145.0,
+                    "max": 182.0
+                },
+                "mann_whitney_u": 3651.0,
+                "p_value": 0.5609491277798107,
+                "rank_biserial": 0.051195426195426164,
+                "is_confounder": false
+            },
+            "DOSE ADMINISTERED (mCi)": {
+                "multinodular_goiter": {
+                    "n": 104,
+                    "mean": 4.361538461538462,
+                    "std": 0.42134958672639444,
+                    "median": 4.4,
+                    "min": 3.0,
+                    "max": 5.0
+                },
+                "diffuse_goiter": {
+                    "n": 74,
+                    "mean": 4.4,
+                    "std": 0.5489716413565446,
+                    "median": 4.45,
+                    "min": 3.0,
+                    "max": 5.0
+                },
+                "mann_whitney_u": 3542.0,
+                "p_value": 0.36324588163035787,
+                "rank_biserial": 0.07952182952182951,
+                "is_confounder": false
+            }
+        },
+        "categorical": {
+            "SEX": {
+                "contingency": {
+                    "FEMALE": {
+                        "diffuse_goiter": 68,
+                        "multinodular_goiter": 97
+                    },
+                    "MALE": {
+                        "diffuse_goiter": 6,
+                        "multinodular_goiter": 7
+                    }
+                },
+                "fisher_exact_p": 0.775242721247057,
+                "odds_ratio": 0.8178694158075601,
+                "is_confounder": false
+            },
+            "OBLIQUE": {
+                "contingency": {
+                    "NO": {
+                        "diffuse_goiter": 11,
+                        "multinodular_goiter": 8
+                    },
+                    "YES": {
+                        "diffuse_goiter": 63,
+                        "multinodular_goiter": 96
+                    }
+                },
+                "fisher_exact_p": 0.14467531858129823,
+                "odds_ratio": 2.0952380952380953,
+                "is_confounder": false
+            }
+        }
+    },
+    "plausibility_flags": {
+        "HEIGHT (cm)": {
+            "plausible_range": [
+                130.0,
+                210.0
+            ],
+            "n_flagged": 2,
+            "flagged_rows": [
+                {
+                    "IMAGE": 102,
+                    "value": 94.0,
+                    "diagnosis": "MULTINODULAR GOITER"
+                },
+                {
+                    "IMAGE": 139,
+                    "value": 53.0,
+                    "diagnosis": "MULTINODULAR GOITER"
+                }
+            ],
+            "as_reported": {
+                "mean": 159.2191011235955,
+                "std": 12.020334714353151,
+                "min": 53.0,
+                "max": 182.0
+            },
+            "excluding_flagged": {
+                "mean": 160.1931818181818,
+                "std": 7.51053805117728,
+                "min": 130.0,
+                "max": 182.0
+            }
+        }
+    }
+}

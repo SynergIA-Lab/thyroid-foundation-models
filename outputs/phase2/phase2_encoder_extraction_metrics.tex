@@ -1,0 +1,20 @@
+\begin{table}
+\caption{Frozen encoders evaluated in this study: pre-training characteristics, embedding geometry and CPU extraction cost.}
+\label{tab:encoders}
+\begin{tabular}{llllllrrrrrrrr}
+\toprule
+encoder & encoder\_display\_name & roi\_mode & pre\_training\_domain & pre\_training\_objective & architecture\_family & parameters\_millions & embedding\_dim & patch\_tokens & extraction\_time\_seconds & latency\_per\_image\_ms & cls\_l2\_norm\_mean & cls\_l2\_norm\_std & tensor\_memory\_mb \\
+\midrule
+resnet50 & ResNet-50 (ImageNet) & fixed & natural & supervised & cnn & 25.560000 & 3072 & 49 & 34.760825 & 70.082309 & 23.606094 & 0.945435 & 195.687500 \\
+resnet50 & ResNet-50 (ImageNet) & dynamic & natural & supervised & cnn & 25.560000 & 3072 & 49 & 34.825575 & 70.212854 & 23.482361 & 0.795200 & 195.687500 \\
+dinov2 & DINOv2 ViT-B/14 & fixed & natural & self-supervised & vit & 86.580000 & 3072 & 256 & 109.664844 & 221.098475 & 81.162354 & 1.443167 & 377.812500 \\
+dinov2 & DINOv2 ViT-B/14 & dynamic & natural & self-supervised & vit & 86.580000 & 3072 & 256 & 109.924235 & 221.621442 & 81.895638 & 1.209246 & 377.812500 \\
+clip & CLIP ViT-B/16 & fixed & natural & vision-language & vit & 85.800000 & 3072 & 196 & 83.410283 & 168.165894 & 40.153839 & 0.286427 & 290.625000 \\
+clip & CLIP ViT-B/16 & dynamic & natural & vision-language & vit & 85.800000 & 3072 & 196 & 83.413486 & 168.172350 & 40.148300 & 0.390375 & 290.625000 \\
+biomedclip & BiomedCLIP ViT-B/16 & fixed & medical & vision-language & vit & 85.800000 & 3072 & 196 & 82.998631 & 167.335950 & 121.770805 & 2.393408 & 290.625000 \\
+biomedclip & BiomedCLIP ViT-B/16 & dynamic & medical & vision-language & vit & 85.800000 & 3072 & 196 & 83.575591 & 168.499176 & 123.372162 & 1.995085 & 290.625000 \\
+raddino & RAD-DINO ViT-B/14 & fixed & medical & self-supervised & vit & 86.580000 & 3072 & 256 & 120.226363 & 242.391861 & 848.961975 & 24.379042 & 377.812500 \\
+raddino & RAD-DINO ViT-B/14 & dynamic & medical & self-supervised & vit & 86.580000 & 3072 & 256 & 119.841279 & 241.615482 & 835.393921 & 29.514685 & 377.812500 \\
+\bottomrule
+\end{tabular}
+\end{table}

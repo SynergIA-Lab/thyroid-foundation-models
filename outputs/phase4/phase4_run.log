@@ -1,0 +1,61 @@
+[integrity] 50 folds verified: no patient appears on both sides of any outer or inner split.
+Encoders available: resnet50, dinov2, clip, biomedclip, raddino
+
+FIXED ROI: 178 patients, 2.79 projections/patient on average.
+
+DYNAMIC ROI: 178 patients, 2.79 projections/patient on average.
+
+FIXED ROI: 178 patients, 2.79 projections/patient on average.
+
+DYNAMIC ROI: 178 patients, 2.79 projections/patient on average.
+
+FIXED ROI: 178 patients, 2.79 projections/patient on average.
+
+DYNAMIC ROI: 178 patients, 2.79 projections/patient on average.
+
+FIXED ROI: 178 patients, 2.79 projections/patient on average.
+
+DYNAMIC ROI: 178 patients, 2.79 projections/patient on average.
+
+FIXED ROI: 178 patients, 2.79 projections/patient on average.
+
+DYNAMIC ROI: 178 patients, 2.79 projections/patient on average.
+[table] phase4_metrics_table_annotated.{csv,md,tex}
+
+                                               config             AUC          PR-AUC             MCC              F1
+               fixed ROI | Single ANTERIOR projection 0.8979 ± 0.0092 0.9176 ± 0.0080 0.6362 ± 0.0365 0.8313 ± 0.0194
+        clip | fixed ROI | Single ANTERIOR projection 0.8770 ± 0.0114 0.9020 ± 0.0121 0.5615 ± 0.0449 0.7942 ± 0.0363
+      clip | dynamic ROI | Single ANTERIOR projection 0.8732 ± 0.0093 0.9066 ± 0.0110 0.6112 ± 0.0217 0.8284 ± 0.0169
+                  fixed ROI | Gated attention pooling 0.8682 ± 0.0128 0.8857 ± 0.0126 0.5680 ± 0.0336 0.7955 ± 0.0386
+                              fixed ROI | Max pooling 0.8619 ± 0.0166 0.8785 ± 0.0168 0.5750 ± 0.0550 0.8034 ± 0.0321
+             dynamic ROI | Single ANTERIOR projection 0.8584 ± 0.0204 0.8896 ± 0.0193 0.5594 ± 0.0708 0.7817 ± 0.0605
+                             fixed ROI | Mean pooling 0.8547 ± 0.0186 0.8738 ± 0.0161 0.5468 ± 0.0400 0.7918 ± 0.0236
+  biomedclip | fixed ROI | Single ANTERIOR projection 0.8433 ± 0.0121 0.8509 ± 0.0140 0.5912 ± 0.0444 0.8254 ± 0.0269
+    resnet50 | fixed ROI | Single ANTERIOR projection 0.8404 ± 0.0239 0.8679 ± 0.0246 0.5198 ± 0.0663 0.7883 ± 0.0241
+biomedclip | dynamic ROI | Single ANTERIOR projection 0.8369 ± 0.0118 0.8557 ± 0.0178 0.5634 ± 0.0372 0.8071 ± 0.0235
+                dynamic ROI | Gated attention pooling 0.8232 ± 0.0140 0.8388 ± 0.0109 0.4851 ± 0.0534 0.7554 ± 0.0539
+                            dynamic ROI | Max pooling 0.8166 ± 0.0152 0.8273 ± 0.0136 0.4955 ± 0.0674 0.7668 ± 0.0493
+  resnet50 | dynamic ROI | Single ANTERIOR projection 0.8136 ± 0.0180 0.8426 ± 0.0150 0.4606 ± 0.0624 0.7618 ± 0.0252
+                           dynamic ROI | Mean pooling 0.8060 ± 0.0270 0.8192 ± 0.0199 0.4866 ± 0.0539 0.7547 ± 0.0519
+     raddino | fixed ROI | Single ANTERIOR projection 0.7594 ± 0.0334 0.8039 ± 0.0313 0.3743 ± 0.0778 0.7108 ± 0.0720
+   raddino | dynamic ROI | Single ANTERIOR projection 0.7328 ± 0.0343 0.7873 ± 0.0267 0.3250 ± 0.0842 0.6688 ± 0.0695
+[table] phase4_statistical_comparisons.{csv,md,tex}
+
+Paired comparisons: 60 contrasts, Benjamini-Hochberg corrected within family|metric.
+  [SIG] fixed ROI | Single ANTERIOR projection         vs fixed ROI | Gated attention pooling            diff=+0.0297 p=8.537e-05 p_adj=0.000165
+  [SIG] fixed ROI | Single ANTERIOR projection         vs fixed ROI | Mean pooling                       diff=+0.0432 p=6.229e-05 p_adj=0.000165
+  [SIG] fixed ROI | Single ANTERIOR projection         vs fixed ROI | Max pooling                        diff=+0.0360 p=9.899e-05 p_adj=0.000165
+  [SIG] fixed ROI | Gated attention pooling            vs fixed ROI | Mean pooling                       diff=+0.0135 p=0.007322 p_adj=0.009153
+  [ns ] fixed ROI | Gated attention pooling            vs fixed ROI | Max pooling                        diff=+0.0063 p=0.1543 p_adj=0.1543
+  [SIG] fixed ROI | Single ANTERIOR projection         vs dynamic ROI | Single ANTERIOR projection       diff=+0.0395 p=4.107e-05 p_adj=0.0001232
+  [SIG] fixed ROI | Gated attention pooling            vs dynamic ROI | Gated attention pooling          diff=+0.0450 p=1.169e-06 p_adj=7.015e-06
+  [SIG] fixed ROI | Single ANTERIOR projection         vs resnet50 | fixed ROI | Single ANTERIOR project diff=+0.0575 p=8.793e-06 p_adj=1.172e-05
+  [SIG] resnet50 | fixed ROI | Single ANTERIOR project vs resnet50 | dynamic ROI | Single ANTERIOR proje diff=+0.0267 p=0.000528 p_adj=0.001056
+  [SIG] fixed ROI | Single ANTERIOR projection         vs clip | fixed ROI | Single ANTERIOR projection  diff=+0.0208 p=0.000167 p_adj=0.000167
+  [ns ] clip | fixed ROI | Single ANTERIOR projection  vs clip | dynamic ROI | Single ANTERIOR projectio diff=+0.0038 p=0.3006 p_adj=0.3006
+  [SIG] fixed ROI | Single ANTERIOR projection         vs biomedclip | fixed ROI | Single ANTERIOR proje diff=+0.0545 p=7.575e-07 p_adj=1.515e-06
+  [ns ] biomedclip | fixed ROI | Single ANTERIOR proje vs biomedclip | dynamic ROI | Single ANTERIOR pro diff=+0.0064 p=0.1248 p_adj=0.1498
+  [SIG] fixed ROI | Single ANTERIOR projection         vs raddino | fixed ROI | Single ANTERIOR projecti diff=+0.1385 p=2.687e-07 p_adj=1.075e-06
+  [SIG] raddino | fixed ROI | Single ANTERIOR projecti vs raddino | dynamic ROI | Single ANTERIOR projec diff=+0.0266 p=0.03094 p_adj=0.04641
+
+Phase 4 complete. Artifacts written to outputs\phase4

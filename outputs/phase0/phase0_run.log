@@ -1,0 +1,16 @@
+=== Phase 0: Cohort Evidence, Linkage Integrity and Confounder Audit ===
+Images: 496 across 178 unique patients
+ - diffuse_goiter: 200 images / 74 patients / views {'ANTERIOR': 74, 'LAO': 63, 'RAO': 63}
+ - multinodular_goiter: 296 images / 104 patients / views {'ANTERIOR': 104, 'LAO': 96, 'RAO': 96}
+Imbalance ratio  images: 1.48:1  patients: 1.41:1
+
+Demographics workbook: 178 rows, columns ['IMAGE', 'FORMAT', 'AGE', 'SEX', 'WEIGHT (Kg)', 'HEIGHT (cm)', 'DOSE ADMINISTERED (mCi)', 'DIAGNOSIS', 'OBLIQUE']
+[linkage] 178 patients linked; 0 identifier mismatches; 0 label mismatches; 0 OBLIQUE flag mismatches.
+[strat] AGE                        p=1.652e-06 r=0.422  <-- CONFOUNDER
+[strat] WEIGHT (Kg)                p=9.212e-01 r=0.009
+[strat] HEIGHT (cm)                p=5.609e-01 r=0.051
+[strat] DOSE ADMINISTERED (mCi)    p=3.632e-01 r=0.080
+[plausibility] HEIGHT (cm): 2 implausible value(s); sd 12.02 -> 7.51 once excluded
+
+Audit saved to: outputs/phase0/phase0_evidence.json
+Cohort audit figure saved to: outputs/phase0/phase0_cohort_audit.png

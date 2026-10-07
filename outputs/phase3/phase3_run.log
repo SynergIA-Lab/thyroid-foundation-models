@@ -1,0 +1,44 @@
+[integrity] 50 folds verified: no patient appears on both sides of any outer or inner split.
+Cohort: 496 images / 178 patients. Positive-class prevalence: 0.597
+Clinical reference covariates: AGE, WEIGHT (Kg), HEIGHT (cm), DOSE ADMINISTERED (mCi), SEX_FEMALE
+Encoders available: resnet50, dinov2, clip, biomedclip, raddino
+Feature blocks loaded: 10
+
+                                   config             AUC          PR-AUC             MCC              F1
+                   fixed ROI | SVM on CLS 0.8336 ± 0.0142 0.8703 ± 0.0111 0.5044 ± 0.0342 0.7853 ± 0.0248
+  fixed ROI | Certainty-weighted ensemble 0.8322 ± 0.0135 0.8654 ± 0.0131 0.5123 ± 0.0329 0.7916 ± 0.0266
+                 fixed ROI | CLS layer -3 0.8277 ± 0.0118 0.8603 ± 0.0125 0.5039 ± 0.0292 0.7875 ± 0.0193
+    fixed ROI | Imaging + clinical fusion 0.8155 ± 0.0300 0.8494 ± 0.0274 0.4776 ± 0.0625 0.7695 ± 0.0388
+          fixed ROI | CLS last two layers 0.8142 ± 0.0158 0.8450 ± 0.0130 0.4863 ± 0.0395 0.7773 ± 0.0218
+                 fixed ROI | CLS layer -4 0.8113 ± 0.0133 0.8589 ± 0.0123 0.4531 ± 0.0196 0.7507 ± 0.0134
+                 fixed ROI | CLS layer -1 0.8109 ± 0.0163 0.8434 ± 0.0162 0.4708 ± 0.0322 0.7696 ± 0.0292
+          fixed ROI | CLS last layer only 0.8109 ± 0.0163 0.8434 ± 0.0162 0.4708 ± 0.0322 0.7696 ± 0.0292
+                 fixed ROI | CLS layer -2 0.8087 ± 0.0189 0.8385 ± 0.0153 0.4648 ± 0.0343 0.7697 ± 0.0200
+                 dynamic ROI | SVM on CLS 0.8006 ± 0.0187 0.8403 ± 0.0154 0.4565 ± 0.0389 0.7564 ± 0.0185
+            clip | fixed ROI | SVM on CLS 0.7986 ± 0.0208 0.8369 ± 0.0207 0.4472 ± 0.0400 0.7577 ± 0.0195
+dynamic ROI | Certainty-weighted ensemble 0.7940 ± 0.0230 0.8335 ± 0.0204 0.4591 ± 0.0410 0.7692 ± 0.0263
+          fixed ROI | ConvHead on patches 0.7929 ± 0.0124 0.8369 ± 0.0117 0.4305 ± 0.0196 0.7516 ± 0.0192
+  dynamic ROI | Imaging + clinical fusion 0.7859 ± 0.0318 0.8238 ± 0.0309 0.4433 ± 0.0520 0.7626 ± 0.0466
+      biomedclip | fixed ROI | SVM on CLS 0.7813 ± 0.0188 0.8153 ± 0.0209 0.4104 ± 0.0320 0.7453 ± 0.0256
+          clip | dynamic ROI | SVM on CLS 0.7811 ± 0.0140 0.8308 ± 0.0098 0.4168 ± 0.0298 0.7254 ± 0.0339
+        resnet50 | fixed ROI | SVM on CLS 0.7760 ± 0.0212 0.8327 ± 0.0201 0.4013 ± 0.0368 0.7110 ± 0.0186
+        dynamic ROI | ConvHead on patches 0.7616 ± 0.0185 0.8014 ± 0.0208 0.3973 ± 0.0270 0.7457 ± 0.0205
+    biomedclip | dynamic ROI | SVM on CLS 0.7607 ± 0.0141 0.8098 ± 0.0115 0.3739 ± 0.0351 0.6958 ± 0.0481
+         raddino | fixed ROI | SVM on CLS 0.7601 ± 0.0184 0.8041 ± 0.0231 0.3692 ± 0.0335 0.7070 ± 0.0440
+       raddino | dynamic ROI | SVM on CLS 0.7489 ± 0.0238 0.8080 ± 0.0179 0.3544 ± 0.0371 0.6920 ± 0.0388
+      resnet50 | dynamic ROI | SVM on CLS 0.7435 ± 0.0159 0.8083 ± 0.0162 0.3303 ± 0.0318 0.6694 ± 0.0247
+                   Clinical metadata only 0.6357 ± 0.0417 0.7238 ± 0.0304 0.1684 ± 0.0839 0.5913 ± 0.0588
+[table] phase3_statistical_comparisons.{csv,md,tex}
+[table] phase3_metrics_table_annotated.{csv,md,tex}
+[table] phase3_encoder_comparison.{csv,md,tex}
+[figure] phase3_encoder_comparison.png, phase3_encoder_comparison.pdf
+
+Selected hyper-parameters (frequency across the 25 folds):
+  dynamic ROI:
+    (1.0, 'scale') -> 50 folds
+    mean inner AUC = nan
+  fixed ROI:
+    (1.0, 'scale') -> 50 folds
+    mean inner AUC = nan
+
+Phase 3 complete. Artifacts written to outputs\phase3

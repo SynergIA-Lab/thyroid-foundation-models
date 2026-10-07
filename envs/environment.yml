@@ -1,0 +1,22 @@
+name: thyroid_env
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - pandas==2.1.4
+    - numpy==1.26.4
+    - scikit-learn==1.3.2
+    - torch==2.2.1
+    - torchvision==0.17.1
+    - scipy==1.11.4
+    - matplotlib==3.8.2
+    - openpyxl==3.1.2
+    - opencv-python==4.8.1.78
+    - tqdm==4.66.1
+    - joblib==1.3.2
+    - jupyter==1.0.0
+    - timm
+    - transformers<4.45.0
+    - open_clip_torch
