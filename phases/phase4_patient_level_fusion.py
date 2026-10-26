@@ -1,93 +1,3 @@
-"""
-Phase 4: Patient-Level Fusion Benchmarking
-==========================================
-
-A patient contributes up to three scintigraphic projections (ANTERIOR, LAO, RAO).
-This phase aggregates the per-projection embeddings into one representation per
-patient and issues a single diagnosis, which is the clinically meaningful unit of
-prediction.
-
-Validation protocol
--------------------
-Identical to Phase 3 and defined on the same folds: fit on 'inner_train',
-calibrate the decision threshold on 'inner_cal', report on the outer 'val'
-fold. Patient disjointness is asserted before training. Since the unit of
-prediction is the patient, each fold's patient sets are derived from the fold's
-sample lists and are disjoint by construction.
-
-Fusion operators benchmarked
-----------------------------
-1. Mean pooling: the unweighted average of a patient's projection embeddings.
-   This is the baseline every other operator must beat.
-2. Gated attention pooling: learns a per-projection weight (Ilse et al., 2018,
-   attention-based deep multiple-instance learning), so the model can
-   down-weight an uninformative projection. The learned weights are exported
-   per projection type, which is a clinically interpretable output.
-3. Max pooling: element-wise maximum, a permutation-invariant alternative that
-   rewards the single most discriminative projection.
-4. Best single projection: the ANTERIOR view alone, which is the operationally
-   relevant reference — if multi-view fusion does not beat one view, acquiring
-   and processing three views is not justified.
-
-A graph-convolution arm present in an earlier revision has been removed. With a
-fully connected adjacency and uniform degree normalisation, every node receives
-the identical aggregated vector, so its graph embedding reduces exactly to
-relu(W · mean(x)): algebraically it is the mean-pooling baseline with one extra
-linear layer, not an independent method, and benchmarking it against mean
-pooling as if it were a distinct architecture is not defensible.
-
-WHAT CHANGED IN THIS REVISION (and why it should improve the metrics)
---------------------------------------------------------------------
-1. CROSS-FITTED DECISION THRESHOLD. This phase's threshold was selected on a
-   single calibration block of 28-31 patients, which gave it sd ~0.16 and a range
-   of 0.65 across the 25 folds; in 3 folds specificity saturated at 1.0 and in 3
-   others sensitivity fell below 0.60. That is the direct cause of the ~0.10 gap
-   between AUC (0.9137) and balanced accuracy (0.8118): the ranking is good and
-   part of the advantage is then lost at the operating point. The threshold is
-   now aggregated over up to INT_THRESHOLD_PARTITIONS inner partitions.
-
-   Each extra partition REFITS the fusion operators on its own training patients.
-   Reusing the partition-0 model to score another partition's calibration block
-   would be scoring patients that model was trained on, i.e. exactly the leak
-   this pipeline exists to prevent. The reported model is still the partition-0
-   model; only the threshold is aggregated (standard cross-fitted calibration).
-
-2. STATISTICAL CONTRASTS ARE NOW GENERATED HERE. This phase produces the paper's
-   headline and its central claim is a comparison between aggregation
-   strategies, yet it exported no test: the claim was unsupported anywhere in the
-   repository and a reviewer running the code could not reproduce it. Contrasts
-   are written to phase4_statistical_comparisons.csv with Benjamini-Hochberg
-   adjusted p-values, computed within family (aggregation vs ROI) and per metric.
-
-   All four metrics are reported deliberately, because they disagree: the
-   single-projection advantage is significant in AUC and PR-AUC but not in MCC.
-
-Neither change is guaranteed to raise a number; both remove a defect a reviewer
-would otherwise find.
-
-READ THIS BEFORE COMPARING WITH PHASE 3
----------------------------------------
-Phase 3 reports AUC ~0.81 and this phase ~0.91. That difference is NOT a
-methodological improvement: Phase 3's unit of analysis is the image (74-88 per
-validation fold) and this phase's is the patient (28-30 per fold). Both consume
-the identical feature files. Aggregating three projections of one thyroid into a
-single decision averages acquisition noise and yields an intrinsically easier
-task. Any manuscript sentence presenting the jump as the effect of a technique
-would be wrong.
-
-Execution Instructions:
------------------------
-Requires Phase 1 (folds) and Phase 2 (features). Produces the headline result
-of the study.
-
-   $ conda activate thyroid_env
-   $ python phases/phase4_patient_level_fusion.py
-
-Runtime: roughly 2.5 hours (every encoder on the single-projection arm, four
-fusion operators on the reference encoder, both ROI tracks, 10 repeats, with the
-decision threshold cross-fitted over four inner partitions).
-"""
-
 import copy
 import sys
 from pathlib import Path
@@ -122,27 +32,9 @@ INT_MAX_EPOCHS = 60
 INT_PATIENCE = 10
 INT_BATCH_SIZE = 8
 STR_REFERENCE_VIEW = "ANTERIOR"
-
-# Both ROI tracks are always evaluated. The fixed-vs-dynamic comparison is a
-# result this paper must establish, not an assumption carried over from earlier
-# runs: a reviewer can only reproduce it if the experiment is in the pipeline.
 LST_ROI_MODES = ["fixed", "dynamic"]
-
-# Number of inner partitions used to average the decision threshold. Each one
-# beyond the first REFITS every fusion operator on its own training patients, so
-# this constant multiplies the run time of this phase almost linearly. Set to 1
-# to reproduce the previous single-block behaviour; 4 uses everything Phase 1
-# now materialises.
 INT_THRESHOLD_PARTITIONS = 4
-
-# Threshold criterion, kept identical to Phase 3 so the two phases are
-# methodologically consistent. Measured on the Phase 3 folds, 'equal_error' gives
-# a more stable threshold but slightly worse threshold-dependent metrics (none of
-# the differences significant), so Youden's J stays primary and the alternative
-# is recorded per fold in 'threshold_alternative'.
 STR_THRESHOLD_CRITERION = "youden"
-
-
 class PatientDataset(Dataset):
     def __init__(self, lstPatientIds, dictPatientData):
         self.lstPatientIds = list(lstPatientIds)
@@ -173,13 +65,6 @@ def collate_patient_sets(batch):
     return tsrPaddedFeatures, tsrLabels, tsrMask, lstLengths
 
 class BaseFusion(nn.Module):
-    """
-    Common classifier head. Subclasses implement pool() only.
-
-    The head is intentionally small (3072 -> 64 -> 2): the patient-level cohort
-    is even smaller than the image-level one (148 subjects total).
-    """
-
     def __init__(self, intEmbedDim=3072, intHiddenDim=64, intNumClasses=2, floatDropout=0.3):
         super().__init__()
         self.objClassifier = nn.Sequential(
@@ -201,8 +86,6 @@ class BaseFusion(nn.Module):
 
 
 class MeanPoolFusion(BaseFusion):
-    """Unweighted average over a patient's valid projections."""
-
     def pool(self, tsrFeatures, tsrMask):
         tsrValid = (~tsrMask).unsqueeze(-1).float()
         tsrPooled = (tsrFeatures * tsrValid).sum(dim=1) / tsrValid.sum(dim=1).clamp(min=1.0)
@@ -210,8 +93,6 @@ class MeanPoolFusion(BaseFusion):
 
 
 class MaxPoolFusion(BaseFusion):
-    """Element-wise maximum over a patient's valid projections."""
-
     def pool(self, tsrFeatures, tsrMask):
         tsrMasked = tsrFeatures.masked_fill(tsrMask.unsqueeze(-1), float("-inf"))
         tsrPooled = tsrMasked.max(dim=1).values
@@ -220,20 +101,6 @@ class MaxPoolFusion(BaseFusion):
 
 
 class GatedAttentionFusion(BaseFusion):
-    """
-    Gated attention pooling over the projection set (Ilse et al., 2018).
-
-    Each projection receives a scalar weight from a two-branch gated network;
-    weights are normalised over the patient's valid projections only. The
-    weights are the clinically interpretable output of this arm: they say which
-    view the model relied on for a given patient.
-
-    The previous revision used nn.MultiheadAttention followed by an unweighted
-    mean over the attended tokens. That configuration lets projections exchange
-    information but then averages them uniformly, so it produces no
-    per-projection importance and its aggregation step is still a mean.
-    """
-
     def __init__(self, intEmbedDim=3072, intAttnDim=64, **kwargs):
         super().__init__(intEmbedDim=intEmbedDim, **kwargs)
         self.objAttnV = nn.Sequential(nn.Linear(intEmbedDim, intAttnDim), nn.Tanh())
@@ -255,14 +122,6 @@ DICT_FUSION_MODELS = {
 }
 
 def build_patient_records(dfTable, arrCls, arrLabels):
-    """
-    Groups projection embeddings by patient.
-
-    Row position in arrCls is safe here only because common.load_features() has
-    already reordered the tensor to dfTable's row order using the stored
-    'sample_ids' key. The view label of each projection is retained so that
-    learned attention weights can be reported per projection type.
-    """
     dictPatientData = {}
     for intRow, serRow in dfTable.reset_index(drop=True).iterrows():
         strPid = str(serRow["patient_id"])
@@ -276,17 +135,12 @@ def build_patient_records(dfTable, arrCls, arrLabels):
 
 
 def patients_of(dfTable, lstSampleIds):
-    """Patient identifiers represented by a list of sample keys."""
     srSelected = dfTable.set_index("sample_id").loc[lstSampleIds, "patient_id"]
     return sorted(set(srSelected.astype(str)))
 
 
 def train_fusion_model(objModelClass, lstTrainPids, lstCalPids, dictPatientData,
                        intEmbedDim):
-    """
-    Fits one fusion operator on the inner training patients with early stopping
-    on the calibration patients. Returns the trained model.
-    """
     torch.manual_seed(INT_GLOBAL_SEED)
     objModel = objModelClass(intEmbedDim=intEmbedDim).to(strDevice)
 
@@ -343,7 +197,6 @@ def train_fusion_model(objModelClass, lstTrainPids, lstCalPids, dictPatientData,
 
 
 def score_patients(objModel, lstPids, dictPatientData):
-    """Returns positive-class probability, label, embedding and attention weight per patient."""
     objLoader = DataLoader(PatientDataset(lstPids, dictPatientData),
                            batch_size=INT_BATCH_SIZE, shuffle=False,
                            collate_fn=collate_patient_sets)
@@ -361,14 +214,6 @@ def score_patients(objModel, lstPids, dictPatientData):
 
 
 def plot_patient_tsne(arrEmbeds, arrLabels, lstPids, pathOut, strTitle):
-    """
-    t-SNE of one repeat's out-of-fold patient embeddings.
-
-    Each patient appears exactly once. The previous revision pooled embeddings
-    from all 25 folds, plotting every patient five times, which inflates the
-    apparent point count fivefold and makes visual separation look denser than
-    the cohort supports.
-    """
     intPerplexity = max(5, min(30, (len(arrEmbeds) - 1) // 3))
     objTsne = TSNE(n_components=2, random_state=INT_GLOBAL_SEED,
                    perplexity=intPerplexity, init="pca", learning_rate="auto")
@@ -387,9 +232,6 @@ def plot_patient_tsne(arrEmbeds, arrLabels, lstPids, pathOut, strTitle):
     objAx.legend(frameon=False, fontsize=8, loc="best")
     objAx.spines[["top", "right"]].set_visible(False)
     objFig.tight_layout()
-    # PDF as well as PNG: see the note on phase4_view_importance. A scatter plot
-    # is line artwork, for which the journal's pixel floor is high and vector
-    # output sidesteps it entirely.
     save_figure(objFig, Path(pathOut).with_suffix(""))
     plt.close(objFig)
 
@@ -405,7 +247,6 @@ def main():
     arrClinical, lstClinicalNames = build_clinical_matrix(dfTable)
     dfIndexed = dfTable.reset_index(drop=True)
 
-    # Patient-level clinical covariates: one row per patient (constant within patient).
     dfPatientClinical = (pd.DataFrame(arrClinical, columns=lstClinicalNames)
                          .assign(patient_id=dfIndexed["patient_id"].astype(str).values)
                          .groupby("patient_id").first())
@@ -413,11 +254,6 @@ def main():
     lstPerFoldRows, lstAttentionRows = [], []
     dictRepeatEmbeds = {}
 
-    # Staged grid, mirroring Phase 3: every encoder is evaluated with the
-    # single-projection reference arm (which is the study's headline arm), while
-    # the four fusion strategies are compared only on the reference encoder.
-    # Running four fusion networks for five encoders would multiply a three-hour
-    # phase by five to answer a question nobody asked.
     lstEncodersFound = available_encoders(LST_ROI_MODES)
     if not lstEncodersFound:
         raise FileNotFoundError(
@@ -435,14 +271,8 @@ def main():
             print(f"Skipping {strEncoder}/{strRoiMode}: {objError}")
             continue
 
-        # Label convention: the reference encoder keeps the short two-part
-        # labels used by the existing reports and comparison code; other
-        # encoders are prefixed. common.parse_config_label() reads both.
         strPrefix = "" if boolIsReference else f"{strEncoder} | "
 
-        # Fusion strategies are compared on the reference encoder only; every
-        # other encoder contributes the single-projection arm, which is the one
-        # the encoder axis is about.
         dictFusionForThisJob = (DICT_FUSION_MODELS if boolIsReference else {})
 
         dictPatientData = build_patient_records(dfTable, arrCls, arrLabels)
@@ -451,7 +281,6 @@ def main():
               f"{np.mean([len(v['features']) for v in dictPatientData.values()]):.2f} "
               f"projections/patient on average.")
 
-        # Single-projection reference set: the ANTERIOR view alone.
         dictSingleView = {}
         for strPid, dictEntry in dictPatientData.items():
             lstIdx = [i for i, v in enumerate(dictEntry["views"]) if v == STR_REFERENCE_VIEW]
@@ -465,8 +294,6 @@ def main():
         for strFoldName, dictFold in tqdm(sorted(dictFolds.items()),
                                           desc=f"{strEncoder}/{strRoiMode}"):
             intRepeat, intFold = parse_fold_name(strFoldName)
-            # All inner partitions of this outer fold; the first one trains the
-            # reported model, the rest contribute to threshold averaging.
             lstInnerFolds = get_inner_folds(dictFold)
             lstTrainPids = patients_of(dfTable, lstInnerFolds[0]["inner_train"])
             lstCalPids = patients_of(dfTable, lstInnerFolds[0]["inner_cal"])
@@ -496,7 +323,6 @@ def main():
                     dictRepeatEmbeds.setdefault((strRoiMode, intRepeat), []).append(
                         (arrValEmbed, arrValTrue, lstValPids))
 
-            # Single-view reference, trained with the same operator and folds.
             objSingleModel = train_fusion_model(MeanPoolFusion, lstTrainPids, lstCalPids,
                                                 dictSingleView, intEmbedDim)
             arrCalProb, arrCalTrue, _, _ = score_patients(objSingleModel, lstCalPids, dictSingleView)
@@ -504,30 +330,11 @@ def main():
             dictFoldProbas[f"{strPrefix}{strRoiMode} ROI | Single {STR_REFERENCE_VIEW} projection"] = (
                 arrCalProb, arrCalTrue, arrValProb, arrValTrue)
 
-            # --- Cross-fitted decision threshold -------------------------
-            # The threshold is the weakest link of this phase: it was selected on
-            # a single calibration block of 28-31 patients, which gave it a
-            # standard deviation of ~0.16 and a range of 0.65 across folds. In 3
-            # of 25 folds specificity saturated at 1.0 and in 3 others
-            # sensitivity fell below 0.60, which is what opens the ~0.10 gap
-            # between AUC (0.9137) and balanced accuracy (0.8118).
-            #
-            # Each additional inner partition requires REFITTING the fusion
-            # operator on its own training patients: reusing the partition-0
-            # model to score another partition's calibration block would be
-            # scoring patients the model was trained on, which is exactly the
-            # leak this pipeline exists to avoid. The models are small, so the
-            # cost is a multiplier on a fast operation, but it IS a multiplier of
-            # about INT_THRESHOLD_PARTITIONS on this phase's run time.
-            #
-            # The reported model remains the partition-0 model; only the
-            # threshold is aggregated. This is standard cross-fitted calibration.
             dictThresholdPairs = {}
             for intPartition, dictInner in enumerate(lstInnerFolds):
                 if intPartition >= INT_THRESHOLD_PARTITIONS:
                     break
                 if intPartition == 0:
-                    # Already computed above; reuse instead of refitting.
                     for strConfig, (arrCalProb, arrCalTrue, _, _) in dictFoldProbas.items():
                         dictThresholdPairs.setdefault(strConfig, []).append(
                             (arrCalTrue, arrCalProb))
@@ -588,8 +395,6 @@ def main():
     lstReportCols = ["config", "n_repeats"] + LST_METRIC_KEYS
     dfSummary[lstReportCols].to_csv(pathPhase4Dir / "phase4_metrics_table.csv", index=False)
 
-    # Manuscript table annotated with the experimental factors, so rows can be
-    # grouped by encoder / ROI / aggregation strategy without parsing labels.
     dfAnnotated = dfSummary[lstReportCols].copy()
     dfFactors = pd.DataFrame([parse_config_label(c) for c in dfAnnotated["config"]])
     dfAnnotated.insert(1, "encoder", dfFactors["encoder"].values)
@@ -604,22 +409,6 @@ def main():
         strLabel="tab:phase4-main")
     print("\n" + dfSummary[["config"] + LST_METRIC_KEYS[:4]].to_string(index=False))
 
-    # --- Paired statistical comparisons ---------------------------------
-    # This phase produces the headline of the paper (patient-level AUC) and its
-    # central claim is a COMPARISON between aggregation strategies, yet it
-    # shipped no test: the claim was unsupported anywhere in the repository and
-    # a reviewer running the code could not reproduce it. Phase 3 already
-    # exported its contrasts; this closes the gap.
-    #
-    # All four metrics are evaluated deliberately. Ranking metrics (AUC, PR-AUC)
-    # and threshold-dependent ones (MCC, balanced accuracy) need not agree, and
-    # here they do not: the single-projection advantage is significant in AUC and
-    # PR-AUC but not in MCC. Reporting all four prevents claiming a global
-    # superiority that only holds for discrimination.
-    #
-    # Families for multiplicity correction: 'aggregation' compares fusion
-    # operators against each other, 'roi' compares the two ROI definitions. They
-    # are separate questions and are corrected separately.
     strSingle = f"fixed ROI | Single {STR_REFERENCE_VIEW} projection"
     lstContrasts = [
         (strSingle, "fixed ROI | Gated attention pooling", "aggregation"),
@@ -631,12 +420,6 @@ def main():
         ("fixed ROI | Gated attention pooling",
          "dynamic ROI | Gated attention pooling", "roi"),
     ]
-
-    # --- Encoder axis, at patient level ---------------------------------
-    # Same staged logic as Phase 3: every encoder is contrasted against the
-    # reference on the single-projection arm, and each encoder's own ROI
-    # contrast is added so the fixed-vs-dynamic result is ESTABLISHED here too
-    # rather than assumed from earlier runs.
     for strEncoder in lstEncodersFound:
         if strEncoder == STR_REFERENCE_ENCODER:
             continue
@@ -674,7 +457,6 @@ def main():
                 dictRow["mean_difference"], dictRow["p_repeat_level_ttest"],
                 dictRow["p_adjusted_bh"]))
 
-    # --- Attention weights per projection type --------------------------
     dfAttention = pd.DataFrame(lstAttentionRows)
     if not dfAttention.empty:
         dfAttention.to_csv(pathPhase4Dir / "phase4_attention_weights.csv", index=False)
@@ -700,14 +482,10 @@ def main():
         objAx.legend(frameon=False, fontsize=8)
         objAx.spines[["top", "right"]].set_visible(False)
         objFig.tight_layout()
-        # save_figure writes PNG and PDF. The PDF matters for submission: the
-        # journal requires bitmapped line drawings to be at least 3543 pixels
-        # wide at single-column size, which a 300 dpi raster of this figure does
-        # not reach. Vector artwork has no resolution requirement.
+
         save_figure(objFig, pathPhase4Dir / "phase4_view_importance")
         plt.close(objFig)
 
-    # --- t-SNE of one repeat's out-of-fold patient embeddings -----------
     if dictRepeatEmbeds:
         tupKey = sorted(dictRepeatEmbeds.keys())[0]
         lstParts = dictRepeatEmbeds[tupKey]

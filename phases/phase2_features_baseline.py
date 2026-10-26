@@ -1,73 +1,3 @@
-"""
-Phase 2: Frozen-encoder feature extraction and ROI-strategy comparison
-======================================================================
-
-Extracts semantic embeddings from the analysis cohort with FIVE frozen
-encoders, crossed with TWO region-of-interest strategies. Nothing is fine-tuned:
-with 148 patients a trainable backbone would overfit long before it improved.
-
-THE EXPERIMENTAL DESIGN THIS PHASE IMPLEMENTS
----------------------------------------------
-Encoders differ along two pre-training axes that the design keeps separable:
-
-    encoder      domain    objective          role
-    ResNet-50    natural   supervised         conventional transfer floor
-    DINOv2       natural   self-supervised    reference foundation model
-    CLIP         natural   vision-language    objective effect, domain fixed
-    BiomedCLIP   medical   vision-language    domain effect, objective fixed
-    RAD-DINO     medical   self-supervised    domain effect, objective fixed
-
-The convolutional floor is what makes the study's central claim falsifiable:
-without it, no reader can tell whether the foundation model contributes anything
-specific or whether any reasonable representation would score the same.
-
-ROI strategies (Track A fixed geometric, Track B attention-derived) are CROSSED
-with the encoder axis rather than assumed. A previous run already indicated that
-the fixed crop performs better, but a result is only reproducible by a reviewer
-if the experiment that establishes it is part of the study, so both tracks are
-extracted for every encoder.
-
-CRITICAL DESIGN DECISION: THE CROPS ARE COMPUTED ONCE AND SHARED
------------------------------------------------------------------
-The attention-derived crop is defined by the REFERENCE encoder and every other
-encoder receives exactly the same cropped pixels. If each encoder cropped using
-its own attention, a between-encoder difference would confound representation
-with field of view, and ResNet-50 could not participate at all because a CNN has
-no attention map. Sharing the crops is what keeps the two axes interpretable.
-
-Alignment contract
-------------------
-Each .npz stores 'cls', 'patch' AND 'sample_ids'. Downstream phases reorder the
-tensors by 'sample_ids' to match their own metadata table. Row position is never
-used as an implicit join key: an earlier revision extracted features over the
-master table while the folds addressed the balanced table, so positional
-indexing silently paired each embedding with the wrong label and fold.
-
-Outputs
--------
-  <encoder>_features_{fixed,dynamic}.npz    embeddings per encoder and track
-  phase2_roi_crops.npz                      cached shared crops
-  phase2_encoder_extraction_metrics.{csv,md,tex}
-  phase2_encoder_registry.{csv,md,tex}
-  phase2_roi_quantitative_metrics.csv       per-image ROI signal/texture metrics
-  phase2_roi_metrics_summary_by_class.csv
-  phase2_computational_metrics.json         cost, provenance, skipped encoders
-  phase2_encoder_cost.{png,pdf}
-  phase2_roi_comparison.{png,pdf}
-
-RUNTIME. Roughly 85 minutes on an 8-core CPU laptop for five encoders and both
-ROI tracks. An encoder whose weights cannot be obtained is SKIPPED and recorded
-in the JSON report rather than aborting the run.
-
-Execution Instructions:
------------------------
-$ conda activate thyroid_env
-$ python phases/phase2_features_baseline.py
-
-Optional, to restrict the encoder zoo (useful for a partial re-run):
-$ THYROID_ENCODERS=dinov2,resnet50 python phases/phase2_features_baseline.py
-"""
-
 import gc
 import os
 import sys
@@ -93,17 +23,11 @@ from common import (apply_manuscript_style, encoder_metadata_frame,
                     STR_REFERENCE_ENCODER, TeeLogger)
 from encoders import apply_tta, build_encoder, EncoderUnavailable
 
-# Both ROI tracks are always extracted: the ROI comparison is an experimental
-# result of this paper, not a settled assumption inherited from earlier runs.
 LST_ROI_MODES = ["fixed", "dynamic"]
-
-# Encoder zoo. THYROID_ENCODERS allows a partial re-run without editing code,
-# which matters because a full pass is ~85 minutes.
 LST_ENCODERS_TO_RUN = [s.strip() for s in
                        os.environ.get("THYROID_ENCODERS", ",".join(LST_ENCODER_ORDER)).split(",")
                        if s.strip()]
 
-# Define global path constants
 pathDataDir = Path("data")
 pathPhase1Dir = Path("outputs/phase1")
 pathPhase2Dir = Path("outputs/phase2")
@@ -111,8 +35,6 @@ pathPhase2Dir.mkdir(parents=True, exist_ok=True)
 
 set_global_seed(INT_GLOBAL_SEED)
 strDevice = get_torch_device()
-# The backbone runs in inference mode only, so a single CPU thread budget is
-# sufficient and keeps memory pressure predictable on modest workstations.
 torch.set_grad_enabled(False)
 print(f"DINOv2 Inference Hardware Device: {strDevice}")
 
@@ -154,11 +76,6 @@ def crop_thyroid_roi_fixed(arrImage, tupleTargetSize=(224, 224)):
     return resize_with_padding(arrCropped, tupleTargetSize)
 
 def get_dynamic_roi_bbox(arrImage, objModel):
-    """
-    Passes the raw image through DINOv2 to extract the Self-Attention map 
-    of the CLS token, thresholds it, and computes the dynamic ROI bounding box.
-    """
-    # Quick resize and normalize for attention pass
     arrPadded = resize_with_padding(arrImage, (224, 224))
     arrRgb = cv2.cvtColor(arrPadded, cv2.COLOR_GRAY2RGB)
     tsrImg = torch.from_numpy(arrRgb).float().permute(2, 0, 1) / 255.0
@@ -168,13 +85,11 @@ def get_dynamic_roi_bbox(arrImage, objModel):
     tsrImg = tsrImg.unsqueeze(0).to(strDevice)
     
     with torch.no_grad():
-        # DINOv2 feature extraction up to the last block
         x = objModel.prepare_tokens_with_masks(tsrImg)
         for i, blk in enumerate(objModel.blocks):
             if i < len(objModel.blocks) - 1:
                 x = blk(x)
                 
-        # Manually compute attention for the last block
         blk = objModel.blocks[-1]
         x_norm = blk.norm1(x)
         
@@ -185,22 +100,17 @@ def get_dynamic_roi_bbox(arrImage, objModel):
         qkv = blk.attn.qkv(x_norm).reshape(B, N, 3, num_heads, head_dim).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
         
-        # Attention formula: softmax(Q*K^T / sqrt(d))
         tsrAttn = (q @ k.transpose(-2, -1)) * (1.0 / (head_dim ** 0.5))
         tsrAttn = torch.softmax(tsrAttn, dim=-1)
         
-    # CLS token attention to all patches: shape (1, heads, 0, 1:) -> (heads, 256)
     tsrClsAttn = tsrAttn[0, :, 0, 1:]
     arrAvgAttn = tsrClsAttn.mean(dim=0).cpu().numpy().reshape(16, 16)
     
-    # Normalize attention map
     arrAvgAttn = (arrAvgAttn - arrAvgAttn.min()) / (arrAvgAttn.max() - arrAvgAttn.min() + 1e-8)
     
-    # Threshold top 30% of attention (weakly supervised segmentation)
     floatThresh = np.percentile(arrAvgAttn, 70)
     arrMask = (arrAvgAttn > floatThresh).astype(np.uint8)
     
-    # Map the 16x16 mask back to the original image dimensions
     intHeight, intWidth = arrImage.shape[:2]
     arrMaskResized = cv2.resize(arrMask, (intWidth, intHeight), interpolation=cv2.INTER_NEAREST)
     
@@ -245,49 +155,19 @@ class ThyroidDataset(Dataset):
         tsrMean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
         tsrStd = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
         
-        # Base normalization
         tsrImageNorm = (tsrImage - tsrMean) / tsrStd
         
-        # Test-Time Augmentation (TTA)
-        # 1. Original
         tsr1 = tsrImageNorm
-        # 2. Horizontal Flip
         tsr2 = TF.hflip(tsrImageNorm)
-        # 3. Rotate +5 degrees
         tsr3 = TF.rotate(tsrImageNorm, 5)
-        # 4. Rotate -5 degrees
         tsr4 = TF.rotate(tsrImageNorm, -5)
-        # 5. Brightness adjust
         tsr5 = TF.adjust_brightness(tsrImageNorm, 1.1)
         
-        # Stack into [5, 3, 224, 224]
         tsrTTA = torch.stack([tsr1, tsr2, tsr3, tsr4, tsr5], dim=0)
         
         return tsrTTA, serRow['class']
 
 def precompute_roi_crops(dfMetadata, objReferenceModel):
-    """
-    Computes BOTH ROI crops for every image ONCE and caches them on disk.
-
-    WHY THE CROPS ARE SHARED ACROSS ENCODERS
-    ----------------------------------------
-    The dynamic ROI is derived from the reference encoder's own attention map.
-    If every encoder cropped with its own attention, a difference between two
-    encoders would confound two things: the representation they compute AND the
-    field of view they were given. The comparison would then answer no question
-    at all.
-
-    Freezing the crops makes the two experimental axes separable:
-        ROI axis      = fixed geometric vs attention-derived field of view
-        encoder axis  = representation computed over an identical field of view
-
-    It is also the only way the convolutional floor can participate: ResNet-50
-    has no attention map and therefore cannot define a dynamic ROI of its own.
-
-    Cached as a single .npz of uint8 crops (410 x 2 x 224 x 224 ~ 41 MB), which
-    also removes the dominant cost from every subsequent encoder: the attention
-    pass that derives the dynamic box runs once instead of five times.
-    """
     pathCache = pathPhase2Dir / "phase2_roi_crops.npz"
     arrSampleIds = np.asarray(dfMetadata["sample_id"].astype(str).tolist(), dtype=np.str_)
 
@@ -321,14 +201,6 @@ def precompute_roi_crops(dfMetadata, objReferenceModel):
 
 
 class CropDataset(Dataset):
-    """
-    Serves pre-computed crops, normalised and augmented for ONE encoder.
-
-    Each encoder supplies its own normalisation statistics (CLIP does not use
-    ImageNet statistics), while the test-time augmentation is identical for all
-    of them so it cannot contribute to any between-encoder difference.
-    """
-
     def __init__(self, arrCrops, objEncoder):
         self.arrCrops = arrCrops
         self.objEncoder = objEncoder
@@ -342,12 +214,6 @@ class CropDataset(Dataset):
 
 
 def extract_features_for_encoder(objEncoder, strMode, arrCrops, dfMetadata):
-    """
-    Runs one frozen encoder over the pre-computed crops of one ROI track.
-
-    Returns (arrCls, arrPatch, dictMetrics) and writes
-    '<encoder>_features_<roi>.npz' with the sample_id alignment contract.
-    """
     print(f"\n--- {objEncoder.name} | {strMode.upper()} ROI ---")
     objDataLoader = DataLoader(CropDataset(arrCrops, objEncoder),
                                batch_size=8, shuffle=False, num_workers=0)
@@ -406,8 +272,6 @@ def extract_features_for_encoder(objEncoder, strMode, arrCrops, dfMetadata):
 def extract_features(strMode, dfMetadata, objModel):
     print(f"\n--- Extracting Features: {strMode.upper()} ROI ---")
     objDataset = ThyroidDataset(dfMetadata, pathDataDir, objModel, strMode=strMode)
-    # shuffle=False is mandatory: row i of the output tensors must correspond to
-    # row i of dfMetadata, which is what the stored 'sample_ids' array asserts.
     objDataLoader = DataLoader(objDataset, batch_size=8, shuffle=False, num_workers=0)
     
     lstClsTokens = []
@@ -416,24 +280,19 @@ def extract_features(strMode, dfMetadata, objModel):
     floatStartTime = time.time()
     with torch.no_grad():
         for tsrBatchImgs, _ in tqdm(objDataLoader):
-            # tsrBatchImgs has shape [B, 5, 3, 224, 224]
             intBatchSize = tsrBatchImgs.shape[0]
-            tsrBatchImgs = tsrBatchImgs.view(-1, 3, 224, 224).to(strDevice) # shape [B*5, 3, 224, 224]
+            tsrBatchImgs = tsrBatchImgs.view(-1, 3, 224, 224).to(strDevice)
             
-            # Multi-layer feature extraction: get last 4 layers
             lstInter = objModel.get_intermediate_layers(tsrBatchImgs, n=4, return_class_token=True)
             
-            # Concatenate CLS tokens from all 4 layers to capture mid-level and high-level features
-            lst_layer_cls = [layer[1] for layer in lstInter] # 4 tensors of [B*5, 768]
-            tsrConcatCls = torch.cat(lst_layer_cls, dim=1)   # shape [B*5, 3072]
+            lst_layer_cls = [layer[1] for layer in lstInter] 
+            tsrConcatCls = torch.cat(lst_layer_cls, dim=1)   
             
-            # Mean-pool over the TTA dimension
-            tsrConcatCls = tsrConcatCls.view(intBatchSize, 5, -1).mean(dim=1) # shape [B, 3072]
+            tsrConcatCls = tsrConcatCls.view(intBatchSize, 5, -1).mean(dim=1) 
             lstClsTokens.append(tsrConcatCls.cpu().numpy())
             
-            # Use only the last layer's patch tokens and mean-pool them
-            tsrPatch = lstInter[-1][0] # shape [B*5, 256, 768]
-            tsrPatch = tsrPatch.view(intBatchSize, 5, tsrPatch.shape[1], tsrPatch.shape[2]).mean(dim=1) # shape [B, 256, 768]
+            tsrPatch = lstInter[-1][0] 
+            tsrPatch = tsrPatch.view(intBatchSize, 5, tsrPatch.shape[1], tsrPatch.shape[2]).mean(dim=1) 
             lstPatchTokens.append(tsrPatch.cpu().numpy())
     floatEndTime = time.time()
             
@@ -456,14 +315,6 @@ def extract_features(strMode, dfMetadata, objModel):
             f"Extracted {len(arrCls)} embeddings for {len(dfMetadata)} metadata rows."
         )
     
-    # The 'sample_ids' array is the alignment contract with Phases 3-5: those
-    # phases reorder the tensors by this key rather than assuming that their own
-    # table happens to share this row order. Storing embeddings without their
-    # keys is what allowed an earlier revision to silently mismatch features,
-    # labels and cross-validation folds.
-    # An explicit unicode dtype is required: a pandas .values of strings is an
-    # object array, and np.savez stores those as pickles that np.load refuses to
-    # read back under its default allow_pickle=False.
     arrSampleIds = np.asarray(dfMetadata['sample_id'].astype(str).tolist(), dtype=np.str_)
     pathOutputNpz = pathPhase2Dir / f"dinov2_features_{strMode}.npz"
     np.savez_compressed(pathOutputNpz, cls=arrCls, patch=arrPatch,
@@ -481,7 +332,6 @@ def extract_roi_metrics(dfMetadata, objModel):
         pathImg = pathDataDir / serRow['class'] / serRow['view'] / serRow['filename']
         arrImage = cv2.imread(str(pathImg), cv2.IMREAD_GRAYSCALE)
         
-        # 1. Fixed ROI mask
         intHeight, intWidth = arrImage.shape[:2]
         intStartY = int(intHeight * 0.20)
         intEndY = int(intHeight * 0.85)
@@ -491,7 +341,6 @@ def extract_roi_metrics(dfMetadata, objModel):
         arrMaskFixed = np.zeros((intHeight, intWidth), dtype=np.uint8)
         arrMaskFixed[intStartY:intEndY, intStartX:intEndX] = 1
 
-        # 2. Dynamic ROI mask
         arrPadded = resize_with_padding(arrImage, (224, 224))
         arrRgb = cv2.cvtColor(arrPadded, cv2.COLOR_GRAY2RGB)
         tsrImg = torch.from_numpy(arrRgb).float().permute(2, 0, 1) / 255.0
@@ -522,16 +371,13 @@ def extract_roi_metrics(dfMetadata, objModel):
         arrMaskDyn16 = (arrAvgAttn > floatThresh).astype(np.uint8)
         arrMaskDyn = cv2.resize(arrMaskDyn16, (intWidth, intHeight), interpolation=cv2.INTER_NEAREST)
         
-        # 3. Calculate IoU
         arrIntersection = (arrMaskFixed & arrMaskDyn)
         arrUnion = (arrMaskFixed | arrMaskDyn)
         floatIoU = arrIntersection.sum() / (arrUnion.sum() + 1e-8)
         
-        # 4. Relative Area
         floatAreaFixed = arrMaskFixed.sum() / (intHeight * intWidth)
         floatAreaDyn = arrMaskDyn.sum() / (intHeight * intWidth)
         
-        # 5. Signal-to-Background Ratio (SBR)
         floatSignalFixed = arrImage[arrMaskFixed == 1].mean() if arrMaskFixed.sum() > 0 else 0
         floatBgFixed = arrImage[arrMaskFixed == 0].mean() if (arrMaskFixed == 0).sum() > 0 else 0
         floatSBRFixed = floatSignalFixed / (floatBgFixed + 1e-8)
@@ -540,7 +386,6 @@ def extract_roi_metrics(dfMetadata, objModel):
         floatBgDyn = arrImage[arrMaskDyn == 0].mean() if (arrMaskDyn == 0).sum() > 0 else 0
         floatSBRDyn = floatSignalDyn / (floatBgDyn + 1e-8)
         
-        # 6. Image Entropy
         lstCoords = cv2.findNonZero(arrMaskDyn)
         if lstCoords is not None:
             x, y, w, h = cv2.boundingRect(lstCoords)
@@ -566,7 +411,6 @@ def extract_roi_metrics(dfMetadata, objModel):
         floatEntropyFixed = float(compute_entropy(arrCroppedFixed))
         floatEntropyDyn = float(compute_entropy(arrCroppedDyn))
         
-        # 7. Fragmentation
         intNumComponents, _ = cv2.connectedComponents(arrMaskDyn)
         intFragmentation = max(1, intNumComponents - 1)
         
@@ -611,31 +455,19 @@ def main():
     sys.stdout = TeeLogger(pathPhase2Dir / "phase2_run.log")
     apply_manuscript_style()
     
-    # Features are extracted over the patient-balanced analysis cohort, which is
-    # exactly the table the Phase 1 cross-validation folds are defined on. The
-    # previous revision extracted over the longer master table while the folds
-    # addressed the balanced one, so tensor rows and fold members referred to
-    # different images.
     dfMetadata = load_balanced_table()
     print(f"Analysis cohort: {len(dfMetadata)} images from "
           f"{dfMetadata['patient_id'].nunique()} patients.")
     
-    # The reference encoder is loaded first: it defines the attention-derived
-    # crops that every other encoder will reuse.
     objReference = build_encoder(STR_REFERENCE_ENCODER)
     print(f"Reference encoder: {objReference.name} "
           f"({objReference.count_parameters()/1e6:.1f}M parameters)")
 
-    # ROI crops computed ONCE and shared. See precompute_roi_crops().
     arrCropsFixed, arrCropsDynamic = precompute_roi_crops(dfMetadata, objReference.module)
     dictCropsByMode = {"fixed": arrCropsFixed, "dynamic": arrCropsDynamic}
 
-    # ROI geometry / texture metrics, computed on the reference encoder only:
-    # they describe the CROPS, which are shared, so repeating them per encoder
-    # would produce five identical tables.
     extract_roi_metrics(dfMetadata, objReference.module)
 
-    # --- Encoder zoo ----------------------------------------------------
     lstEncoderMetrics = []
     dictSkipped = {}
     for strEncoderKey in LST_ENCODERS_TO_RUN:
@@ -643,8 +475,6 @@ def main():
             objEncoder = (objReference if strEncoderKey == STR_REFERENCE_ENCODER
                           else build_encoder(strEncoderKey))
         except EncoderUnavailable as objError:
-            # A missing backbone must not abort a multi-hour run. It is recorded
-            # so the manuscript can state exactly which encoders were evaluated.
             dictSkipped[strEncoderKey] = str(objError)
             print(f"\n[SKIP] {strEncoderKey}: {objError}")
             continue
@@ -655,12 +485,9 @@ def main():
             lstEncoderMetrics.append(dictMetrics)
 
         if strEncoderKey != STR_REFERENCE_ENCODER:
-            # Free the backbone before loading the next one: five ViT-B models
-            # resident simultaneously is unnecessary pressure on a 16 GB laptop.
             del objEncoder
             gc.collect()
 
-    # --- Computational metrics -----------------------------------------
     dfEncoderMetrics = pd.DataFrame(lstEncoderMetrics)
     export_manuscript_table(
         dfEncoderMetrics,
@@ -688,7 +515,6 @@ def main():
         "per_encoder_metrics": lstEncoderMetrics,
     }
     if "fixed" in dictReference and "dynamic" in dictReference:
-        # Retained for backward compatibility with the existing reports.
         dictHardwareMetrics["fixed_roi_metrics"] = dictReference["fixed"]
         dictHardwareMetrics["dynamic_roi_metrics"] = dictReference["dynamic"]
         dictHardwareMetrics["overhead_dynamic_ms"] = float(
@@ -700,7 +526,6 @@ def main():
         json.dump(dictHardwareMetrics, f, indent=4)
     print(f"\nComputational metrics saved to: {pathMetricsJson}")
 
-    # Encoder description table for the manuscript's methods section.
     export_manuscript_table(
         encoder_metadata_frame(),
         pathPhase2Dir / "phase2_encoder_registry",
@@ -709,7 +534,6 @@ def main():
                    "effects can be separated.",
         strLabel="tab:encoder-registry")
 
-    # --- Extraction-cost figure ----------------------------------------
     if not dfEncoderMetrics.empty:
         objFig, objAx = plt.subplots(figsize=(6.6, 3.6))
         dfPivot = dfEncoderMetrics.pivot_table(
@@ -729,7 +553,6 @@ def main():
         save_figure(objFig, pathPhase2Dir / "phase2_encoder_cost")
         plt.close(objFig)
     
-    # --- Generate Comparative Visual Demo ---
     serDemoRow = dfMetadata.iloc[0]
     pathDemoImg = pathDataDir / serDemoRow['class'] / serDemoRow['view'] / serDemoRow['filename']
     
@@ -753,7 +576,5 @@ def main():
     save_figure(objFig, pathPhase2Dir / "phase2_roi_comparison")
     plt.close(objFig)
     
-
-
 if __name__ == "__main__":
     main()

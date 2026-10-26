@@ -1,63 +1,3 @@
-"""
-Phase 0: Dataset Evidence, Cohort Structure and Confounder Audit
-================================================================
-
-Quantitative audit of the raw scintigraphic image repository and its clinical
-metadata, performed before any tensor transformation. Phase 0 produces no
-model and no prediction; its only job is to state what the data actually is,
-including the parts that are inconvenient.
-
-WHAT THE IMAGES ARE
--------------------
-These are thyroid *scintigrams* (nuclear medicine planar gamma-camera images
-acquired after administration of a radiotracer), NOT ultrasound images. The
-metadata column 'DOSE ADMINISTERED (mCi)' is the administered activity, which
-only exists for a radionuclide study. Every downstream description of the
-modality must say scintigraphy: the texture statistics, the resolution, and
-the meaning of "diffuse" versus "multinodular" uptake are specific to it.
-
-FOUR AUDITS PERFORMED HERE
---------------------------
-1. Image inventory, resolved at THREE levels that must not be conflated:
-   image, projection (view), and patient. Reporting an image-level ratio as
-   "the class imbalance" overstates it, because patients contribute unequal
-   numbers of images.
-
-2. Linkage integrity between the folder tree and the demographics workbook.
-   This is asserted, not assumed: identifier sets must match exactly and the
-   folder-derived label must agree with the workbook diagnosis for every
-   patient. A silent linkage failure here would invalidate every later phase,
-   so a mismatch aborts the run.
-
-3. Per-class demographic stratification with hypothesis tests. This is the
-   scientifically load-bearing part of Phase 0. If a covariate differs
-   between the two diagnostic groups, then a classifier can reach good
-   performance without extracting any information from the gland, and the
-   manuscript is obliged to (a) declare it as a limitation and (b) report the
-   clinical-only reference arm of Phase 3 that quantifies it.
-
-4. Plausibility screening of the anthropometric fields. Values that are
-   physiologically impossible are flagged, and their effect on the reported
-   summary statistics is quantified. Anthropometric fields feed the Phase 3
-   reference arm through common.build_clinical_matrix(), so a transcription
-   error is not a cosmetic problem: it propagates into a comparator arm.
-
-OUTPUTS (outputs/phase0/)
--------------------------
-- phase0_evidence.json    Full machine-readable audit.
-- phase0_cohort_audit.png Three-panel figure for the manuscript.
-- phase0.txt              Narrative clinical report.
-- phase0_run.log          Console transcript.
-
-Execution Instructions:
------------------------
-1. Activate the conda environment:
-   $ conda activate thyroid_env
-
-2. Run the script from the root of the repository:
-   $ python phases/phase0_evidence.py
-"""
-
 import sys
 import os
 import json
@@ -70,9 +10,6 @@ from scipy import stats
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import TeeLogger
 
-# Physiological plausibility bounds for adult anthropometry. Values outside
-# these ranges are treated as transcription errors, not as biological
-# variation, and are reported explicitly rather than silently winsorised.
 DICT_PLAUSIBLE_RANGE = {
     "AGE": (18.0, 100.0),
     "WEIGHT (Kg)": (35.0, 200.0),
@@ -80,18 +17,12 @@ DICT_PLAUSIBLE_RANGE = {
     "DOSE ADMINISTERED (mCi)": (0.5, 15.0),
 }
 
-# Views expected in this acquisition protocol. ANTERIOR is the mandatory
-# projection; the two obliques are acquired only when the OBLIQUE flag is set.
 LST_EXPECTED_VIEWS = ["ANTERIOR", "LAO", "RAO"]
-
 DICT_DIAGNOSIS_TO_FOLDER = {
     "MULTINODULAR GOITER": "multinodular_goiter",
     "DIFFUSE GOITER": "diffuse_goiter",
 }
 
-# Colour identity for the two diagnostic classes, threaded through every
-# panel. Blue/orange rather than blue/green so the pair survives
-# deuteranopia simulation.
 DICT_CLASS_COLOUR = {
     "multinodular_goiter": "#2B6A8F",
     "diffuse_goiter": "#C1663A",
@@ -104,14 +35,7 @@ DICT_CLASS_LABEL = {
 
 
 def scan_image_inventory(pathDataDir):
-    """
-    Builds the image inventory resolved by class, patient and projection.
-
-    The patient identifier is the image file stem, which is the same integer
-    used in the 'IMAGE' column of the demographics workbook. A patient
-    contributes one file per acquired projection, so file count and patient
-    count are different quantities and are returned separately.
-    """
+    
     dictInventory = {}
     lstValidExtensions = [".jpg", ".png", ".tif", ".jpeg"]
 
@@ -146,19 +70,6 @@ def scan_image_inventory(pathDataDir):
 
 
 def assert_linkage_integrity(dictInventory, dfDemographics):
-    """
-    Verifies that the folder tree and the workbook describe the same cohort.
-
-    Three conditions are enforced. First, the identifier sets must be equal:
-    an image without metadata cannot be used in the clinical reference arm,
-    and metadata without an image is a phantom patient inflating the reported
-    cohort size. Second, the folder-derived label must equal the workbook
-    diagnosis for every patient, since the folder is what supervises training.
-    Third, the OBLIQUE flag must agree with the projections present on disk.
-
-    Any violation raises. Phase 0 is the only place where these can be caught
-    cheaply; downstream they would surface as silently wrong labels.
-    """
     dictPatientToClass = {}
     dictPatientToViews = {}
     for strClass, dictClass in dictInventory.items():
@@ -221,14 +132,6 @@ def assert_linkage_integrity(dictInventory, dfDemographics):
 
 
 def screen_plausibility(dfDemographics):
-    """
-    Flags physiologically impossible values and quantifies their leverage.
-
-    For each flagged field the summary statistics are recomputed with the
-    offending rows excluded, so the report can state how much the anomaly
-    distorts the number it would otherwise print. Nothing is modified in the
-    source workbook: this function only measures and reports.
-    """
     dictFlags = {}
     for strCol, tupRange in DICT_PLAUSIBLE_RANGE.items():
         if strCol not in dfDemographics.columns:
@@ -266,18 +169,6 @@ def screen_plausibility(dfDemographics):
 
 
 def stratify_by_class(dfDemographics):
-    """
-    Contrasts every demographic covariate between the two diagnostic groups.
-
-    Continuous covariates use the Mann-Whitney U test, which does not assume
-    normality and is appropriate for the skewed anthropometric fields here.
-    The effect size reported alongside is the rank-biserial correlation, since
-    a p-value on n=178 says whether a difference exists but not whether it is
-    large enough to matter. Categorical covariates use Fisher's exact test.
-
-    A covariate that separates the classes is a potential confounder: it
-    offers the classifier a shortcut that bypasses the image entirely.
-    """
     dfWork = dfDemographics.copy()
     dfWork["__class"] = dfWork["DIAGNOSIS"].map(DICT_DIAGNOSIS_TO_FOLDER)
 
@@ -334,19 +225,9 @@ def stratify_by_class(dfDemographics):
 
 
 def plot_cohort_audit(dictInventory, dictStrat, dfDemographics, pathOut):
-    """
-    Three-panel cohort figure for the manuscript.
-
-    Panel a resolves the imbalance at image and patient level side by side,
-    because the two ratios differ and quoting only the image-level one
-    overstates the problem. Panel b shows the projection protocol. Panel c
-    shows the age distribution per class, which is the confounder the reader
-    must see rather than be told about.
-    """
     objFig, arrAxes = plt.subplots(1, 3, figsize=(13.0, 4.1))
     lstClasses = ["multinodular_goiter", "diffuse_goiter"]
 
-    # --- Panel a: imbalance at two levels of aggregation -----------------
     objAx = arrAxes[0]
     arrX = np.arange(len(lstClasses))
     floatWidth = 0.38
@@ -376,7 +257,6 @@ def plot_cohort_audit(dictInventory, dictStrat, dfDemographics, pathOut):
     objAx.legend(frameon=False, fontsize=8, loc="upper right")
     objAx.spines[["top", "right"]].set_visible(False)
 
-    # --- Panel b: acquisition protocol ----------------------------------
     objAx = arrAxes[1]
     arrXView = np.arange(len(LST_EXPECTED_VIEWS))
     for intPos, strClass in enumerate(lstClasses):
@@ -384,9 +264,7 @@ def plot_cohort_audit(dictInventory, dictStrat, dfDemographics, pathOut):
         objAx.bar(arrXView + (intPos - 0.5) * floatWidth, lstCounts, floatWidth,
                   label=DICT_CLASS_LABEL[strClass], color=DICT_CLASS_COLOUR[strClass],
                   edgecolor="black", linewidth=0.6)
-    # The title states a fact about the protocol, so it is derived from the
-    # inventory rather than written by hand: a hardcoded count would silently
-    # become a false claim if the cohort were ever extended.
+
     intMissingObl = sum(
         1 for dictCls in dictInventory.values()
         for lstViews in dictCls["views_by_patient"].values()
@@ -409,7 +287,6 @@ def plot_cohort_audit(dictInventory, dictStrat, dfDemographics, pathOut):
     objAx.legend(frameon=False, fontsize=8)
     objAx.spines[["top", "right"]].set_visible(False)
 
-    # --- Panel c: the age confounder ------------------------------------
     objAx = arrAxes[2]
     dictAge = dictStrat["continuous"].get("AGE", {})
     dfWork = dfDemographics.copy()
@@ -457,7 +334,6 @@ def main():
     sys.stdout = TeeLogger(pathPhase0Dir / "phase0_run.log")
     print("=== Phase 0: Cohort Evidence, Linkage Integrity and Confounder Audit ===")
 
-    # --- 1. Image inventory at three levels of aggregation ---------------
     dictInventory = scan_image_inventory(pathDataDir)
     if not dictInventory:
         raise FileNotFoundError(
@@ -485,7 +361,6 @@ def main():
     print(f"Imbalance ratio  images: {max(lstImgCounts) / min(lstImgCounts):.2f}:1  "
           f"patients: {max(lstPatCounts) / min(lstPatCounts):.2f}:1")
 
-    # --- 2. Clinical metadata, linkage, stratification, plausibility -----
     pathClinicalData = pathDataDir / "datosDemograficos.xlsx"
     if not pathClinicalData.exists():
         raise FileNotFoundError(
@@ -514,7 +389,6 @@ def main():
               f"sd {dictFlag['as_reported']['std']:.2f} -> "
               f"{dictFlag['excluding_flagged']['std']:.2f} once excluded")
 
-    # --- 3. Descriptive summary of the whole cohort ----------------------
     dictClinicalStats = {"total_patients_in_workbook": int(len(dfDemographics))}
     if "DIAGNOSIS" in dfDemographics.columns:
         dictClinicalStats["diagnosis_distribution"] = \
@@ -536,7 +410,6 @@ def main():
             "max": float(serVal.max()),
         }
 
-    # --- 4. Assemble and persist the audit ------------------------------
     dictResults = {
         "modality": {
             "technique": "planar thyroid scintigraphy (nuclear medicine)",

@@ -1,30 +1,3 @@
-"""
-Shared Utilities for the Thyroid Scintigraphy Classification Pipeline
-====================================================================
-
-This module centralises every operation that must behave identically across
-phases: table loading, feature alignment, cross-validation split handling,
-patient-level leakage assertions, threshold calibration and metric reporting.
-
-Design rules enforced here
---------------------------
-1. NEVER index a feature matrix or a metadata table with positional integers
-   taken from a different table. All alignment is performed through the
-   immutable 'sample_id' key.
-2. NEVER derive a decision threshold from the outer validation fold. The
-   threshold is a hyper-parameter and is calibrated exclusively on the inner
-   calibration split produced by Phase 1.
-3. Every phase that consumes cross-validation splits calls
-   assert_folds_patient_disjoint() before training anything. A patient whose
-   views appear on both sides of a split raises an exception instead of
-   silently inflating the reported metrics.
-
-Usage:
-    from common import (load_balanced_table, load_features, load_splits,
-                        assert_folds_patient_disjoint, select_threshold_youden,
-                        calculate_full_metrics, summarise_across_repeats, TeeLogger)
-"""
-
 import json
 import random
 import sys
@@ -50,9 +23,6 @@ from sklearn.metrics import (accuracy_score, average_precision_score,
                              confusion_matrix, f1_score, matthews_corrcoef,
                              recall_score, roc_auc_score, roc_curve)
 
-# --------------------------------------------------------------------------
-# Canonical paths (all relative to the repository root)
-# --------------------------------------------------------------------------
 pathDataDir = Path("data")
 pathOutputsDir = Path("outputs")
 pathPhase0Dir = pathOutputsDir / "phase0"
@@ -66,53 +36,18 @@ pathMasterCsv = pathPhase1Dir / "phase1_master_table.csv"
 pathBalancedCsv = pathPhase1Dir / "phase1_balanced_table.csv"
 pathSplitsJson = pathPhase1Dir / "phase1_nested_cv_splits.json"
 
-# --------------------------------------------------------------------------
-# Study-wide constants
-# --------------------------------------------------------------------------
 LST_TARGET_CLASSES = ["diffuse_goiter", "multinodular_goiter"]
-
-# Explicit label mapping. Never rely on LabelEncoder's alphabetical ordering:
-# the positive class must be documented in the manuscript.
 DICT_CLASS_TO_LABEL = {"diffuse_goiter": 0, "multinodular_goiter": 1}
 STR_POSITIVE_CLASS = "multinodular_goiter"
 
 LST_METRIC_KEYS = ["AUC", "PR-AUC", "MCC", "F1", "Sensitivity", "Specificity",
                    "Accuracy", "Balanced Accuracy"]
 
-# Clinical covariates used for the metadata-only reference model. This arm
-# quantifies how much of the discrimination is attributable to demographics
-# alone, and is a mandatory comparison for any imaging claim.
 LST_CLINICAL_COLUMNS = ["AGE", "WEIGHT (Kg)", "HEIGHT (cm)",
                         "DOSE ADMINISTERED (mCi)"]
 
 INT_GLOBAL_SEED = 42
 
-# --------------------------------------------------------------------------
-# Encoder registry
-# --------------------------------------------------------------------------
-# The study compares five frozen encoders that differ along TWO axes, so that
-# the two axes can be separated instead of confounded:
-#
-#   axis 1  PRE-TRAINING DOMAIN     natural images  vs  medical images
-#   axis 2  PRE-TRAINING OBJECTIVE  supervised / self-supervised / vision-language
-#
-# None of them is trained on nuclear medicine, so the question this design
-# answers is not "does a medical encoder win" but "which axis matters more for
-# planar scintigraphy". The contrasts that fall out of it are:
-#
-#   DINOv2 vs CLIP        objective effect, domain held constant
-#   DINOv2 vs RAD-DINO    domain effect, objective held constant
-#   CLIP   vs BiomedCLIP  domain effect replicated under the other objective
-#   DINOv2 vs ResNet-50   does the foundation model earn its place at all
-#
-# The last one is the FLOOR. Without it no reviewer can tell whether the
-# foundation model contributes anything specific or whether any reasonable
-# representation would do, and the paper's central claim stops being falsifiable.
-#
-# 'loader' names the function in phase2_features_baseline.py that builds it.
-# 'patch_grid' is the number of patch tokens (14x14=196 for /16 backbones at
-# 224px, 16x16=256 for /14). Phase 3's convolutional head reshapes patch tokens
-# to a square grid, so it must adapt per encoder rather than assume 256.
 DICT_ENCODERS = {
     "dinov2": {
         "display_name": "DINOv2 ViT-B/14",
@@ -171,23 +106,11 @@ DICT_ENCODERS = {
     },
 }
 
-# Evaluation order used in every table and figure, weakest expected first so the
-# floor is visually adjacent to the models it is meant to bound.
 LST_ENCODER_ORDER = ["resnet50", "dinov2", "clip", "biomedclip", "raddino"]
-
-# The encoder that defines the attention-guided crops. Every other encoder
-# receives THE SAME cropped images, which is what keeps the ROI axis and the
-# encoder axis separable: if each encoder cropped with its own attention, a
-# difference between encoders would confound representation with field of view.
-# It is also the only way ResNet-50 can participate, since it has no attention.
 STR_REFERENCE_ENCODER = "dinov2"
 
 
 def set_global_seed(intSeed=INT_GLOBAL_SEED):
-    """
-    Seeds every random number generator that influences the pipeline.
-    Torch is seeded lazily so that this module stays importable without torch.
-    """
     random.seed(intSeed)
     np.random.seed(intSeed)
     try:
@@ -200,11 +123,6 @@ def set_global_seed(intSeed=INT_GLOBAL_SEED):
 
 
 def get_torch_device():
-    """
-    Resolves the best available compute device without assuming a discrete GPU.
-    Falls back through CUDA -> Metal -> CPU so the pipeline runs unmodified on
-    any workstation.
-    """
     import torch
     if torch.cuda.is_available():
         return "cuda"
@@ -212,10 +130,6 @@ def get_torch_device():
         return "mps"
     return "cpu"
 
-
-# --------------------------------------------------------------------------
-# Metadata tables
-# --------------------------------------------------------------------------
 def _load_table(pathCsv):
     if not pathCsv.exists():
         raise FileNotFoundError(
@@ -229,60 +143,30 @@ def _load_table(pathCsv):
 
 
 def load_master_table():
-    """Full unbalanced inventory: every parsed image with its clinical record."""
     return _load_table(pathMasterCsv)
 
 
 def load_balanced_table():
-    """
-    Patient-level class-balanced cohort. THIS is the analysis cohort: the
-    cross-validation splits in phase1_nested_cv_splits.json are defined over
-    the patients of this table and over no other.
-    """
     return _load_table(pathBalancedCsv)
 
 
 def get_labels(dfTable):
-    """Integer label vector aligned row-by-row with dfTable."""
     return dfTable["class"].map(DICT_CLASS_TO_LABEL).astype(int).values
 
 
 def build_clinical_matrix(dfTable):
-    """
-    Numeric design matrix for the metadata-only reference model.
-    Missing values are imputed with the column median; SEX is one-hot encoded
-    as a single indicator because the cohort contains exactly two categories.
-    """
     dfClinical = dfTable[LST_CLINICAL_COLUMNS].apply(pd.to_numeric, errors="coerce")
     dfClinical = dfClinical.fillna(dfClinical.median())
     dfClinical = dfClinical.assign(SEX_FEMALE=(dfTable["SEX"] == "FEMALE").astype(int))
     return dfClinical.values.astype(np.float64), list(dfClinical.columns)
 
-
-# --------------------------------------------------------------------------
-# Feature tensors
-# --------------------------------------------------------------------------
 def feature_file(strRoiMode, strEncoder=STR_REFERENCE_ENCODER):
-    """
-    Canonical path of the feature file for one (encoder, ROI mode) pair.
-
-    The legacy naming 'dinov2_features_<roi>.npz' is preserved for the reference
-    encoder so that existing files keep working; every other encoder uses
-    '<encoder>_features_<roi>.npz'.
-    """
     if strEncoder == STR_REFERENCE_ENCODER:
         return pathPhase2Dir / f"dinov2_features_{strRoiMode}.npz"
     return pathPhase2Dir / f"{strEncoder}_features_{strRoiMode}.npz"
 
 
 def available_encoders(lstRoiModes=("fixed", "dynamic")):
-    """
-    Encoders whose feature files exist on disk for ALL requested ROI modes.
-
-    Phases 3 and 4 call this so that a partially completed Phase 2 degrades to
-    "evaluate what is available" instead of crashing, while still reporting
-    exactly what was found.
-    """
     lstFound = []
     for strEncoder in LST_ENCODER_ORDER:
         if all(feature_file(m, strEncoder).exists() for m in lstRoiModes):
@@ -292,24 +176,6 @@ def available_encoders(lstRoiModes=("fixed", "dynamic")):
 
 def load_features(strRoiMode, dfTable, boolLoadPatch=False,
                   strEncoder=STR_REFERENCE_ENCODER):
-    """
-    Loads the Phase 2 embeddings and REORDERS them to match dfTable row order
-    by 'sample_id'.
-
-    Phase 2 writes a 'sample_ids' array alongside the tensors precisely so that
-    this alignment is explicit rather than an assumption about row order. Any
-    sample present in dfTable but absent from the tensor file raises an error.
-
-    Parameters
-    ----------
-    strEncoder : key of DICT_ENCODERS. Defaults to the reference encoder so that
-                 every existing call site keeps its previous behaviour.
-
-    Returns
-    -------
-    arrCls   : (n_rows, D) multi-layer CLS embeddings, aligned to dfTable
-    arrPatch : (n_rows, P, d) patch tokens aligned to dfTable, or None
-    """
     pathFeatures = feature_file(strRoiMode, strEncoder)
     if not pathFeatures.exists():
         raise FileNotFoundError(
@@ -341,20 +207,7 @@ def load_features(strRoiMode, dfTable, boolLoadPatch=False,
     arrPatch = dictNpz["patch"][arrOrder] if boolLoadPatch else None
     return arrCls, arrPatch
 
-
-# --------------------------------------------------------------------------
-# Cross-validation splits
-# --------------------------------------------------------------------------
 def load_splits():
-    """
-    Reads phase1_nested_cv_splits.json and returns (dictMeta, dictFolds).
-
-    Folds are expressed exclusively as lists of 'sample_id' and 'patient_id'
-    strings. The legacy schema stored positional integers ('train_indices')
-    computed on the balanced table while later phases indexed the master table
-    with them, which silently destroyed the patient grouping. Encountering that
-    schema is a hard error, not a fallback.
-    """
     if not pathSplitsJson.exists():
         raise FileNotFoundError(
             f"{pathSplitsJson} not found. Run 'python phases/phase1_data_prep.py' first."
@@ -389,23 +242,6 @@ def load_splits():
 
 
 def get_inner_folds(dictFold):
-    """
-    Returns the list of inner train/calibration partitions of one outer fold.
-
-    Phase 1 writes an 'inner_folds' list with all INT_NUM_INNER_FOLDS partitions.
-    Phases 3 and 4 iterate over them to average the decision threshold, which
-    halves its standard error relative to using a single calibration block.
-
-    Falls back to wrapping the flat 'inner_train'/'inner_cal' keys in a
-    single-element list when the split file predates that change, so an older
-    phase1_nested_cv_splits.json still runs (with the old, noisier behaviour)
-    instead of raising. The console output of Phases 3 and 4 states which of the
-    two situations applies, so a single-partition run is never silent.
-
-    Returns
-    -------
-    list of dicts, each with keys 'inner_train' and 'inner_cal' (sample_id lists).
-    """
     lstInnerFolds = dictFold.get("inner_folds")
     if lstInnerFolds:
         return lstInnerFolds
@@ -414,10 +250,6 @@ def get_inner_folds(dictFold):
 
 
 def get_fold_row_positions(dfTable, lstSampleIds):
-    """
-    Translates a list of sample_id strings into row positions of dfTable.
-    This is the ONLY sanctioned way to convert a split into array indices.
-    """
     dictIdToRow = {strId: intRow for intRow, strId in enumerate(dfTable["sample_id"])}
     lstAbsent = [s for s in lstSampleIds if s not in dictIdToRow]
     if lstAbsent:
@@ -430,13 +262,6 @@ def get_fold_row_positions(dfTable, lstSampleIds):
 
 
 def assert_folds_patient_disjoint(dfTable, dictFolds, boolVerbose=True):
-    """
-    Hard gate against patient-level data leakage.
-
-    Raises AssertionError if any patient contributes images to both sides of a
-    split, at the outer level (train vs val) or at the inner level
-    (inner_train vs inner_cal). Every phase calls this before training.
-    """
     dictSampleToPatient = dict(zip(dfTable["sample_id"], dfTable["patient_id"]))
     lstViolations = []
 
@@ -475,18 +300,7 @@ def assert_folds_patient_disjoint(dfTable, dictFolds, boolVerbose=True):
               "both sides of any outer or inner split.")
     return True
 
-
-# --------------------------------------------------------------------------
-# Thresholding and metrics
-# --------------------------------------------------------------------------
 def select_threshold_youden(arrYTrue, arrYProb):
-    """
-    Youden's J optimal cut-off.
-
-    MUST be called with calibration data (inner_cal), never with the outer
-    validation fold on which the metrics are subsequently reported. If the
-    calibration set happens to be single-class, falls back to 0.5.
-    """
     arrYTrue = np.asarray(arrYTrue)
     if len(np.unique(arrYTrue)) < 2:
         return 0.5
@@ -495,39 +309,13 @@ def select_threshold_youden(arrYTrue, arrYProb):
 
 
 def select_threshold_equal_error(arrYTrue, arrYProb):
-    """
-    Cut-off where sensitivity equals specificity (equal-error-rate point).
-
-    WHY THIS EXISTS ALONGSIDE YOUDEN'S J
-    ------------------------------------
-    Youden's J maximises (TPR - FPR) over an empirical, step-shaped ROC curve.
-    With 28-31 calibration patients that curve has few steps and the argmax
-    jumps between adjacent, nearly-equivalent operating points: the selected
-    threshold had sd ~0.15 and range 0.52-0.65 across the 25 folds, and in 3
-    folds specificity saturated at 1.0 while in 3 others sensitivity fell below
-    0.60. The equal-error criterion targets the crossing of two monotone curves
-    instead of the maximum of a difference, which is markedly less sensitive to
-    single-sample changes in a small calibration block.
-
-    This is offered as the STABLE alternative; which of the two is primary is a
-    reporting decision that must be declared in the manuscript, with the other
-    quoted as a sensitivity analysis. Both are computed from calibration data
-    only.
-
-    MUST be called with calibration data, never with the outer validation fold.
-    Falls back to 0.5 on a single-class calibration set.
-    """
     arrYTrue = np.asarray(arrYTrue)
     if len(np.unique(arrYTrue)) < 2:
         return 0.5
     arrFpr, arrTpr, arrThresholds = roc_curve(arrYTrue, arrYProb)
-    # |sensitivity - specificity| = |TPR - (1 - FPR)|; minimised at the crossing.
     arrGap = np.abs(arrTpr - (1.0 - arrFpr))
     return float(arrThresholds[np.argmin(arrGap)])
 
-
-# Threshold criteria available to the phases. The manuscript must state which
-# one produced the headline numbers.
 DICT_THRESHOLD_CRITERIA = {
     "youden": select_threshold_youden,
     "equal_error": select_threshold_equal_error,
@@ -535,34 +323,6 @@ DICT_THRESHOLD_CRITERIA = {
 
 
 def select_threshold_averaged(lstCalPairs, strCriterion="youden"):
-    """
-    Averages the decision threshold over several calibration blocks.
-
-    Each element of lstCalPairs is an (arrYTrue, arrYProb) tuple obtained from
-    ONE inner calibration partition. Phase 1 materialises four such partitions
-    per outer fold; averaging the per-partition thresholds reduces the standard
-    error of the threshold by approximately 1/sqrt(k).
-
-    This is the single change with the largest expected effect on the
-    threshold-dependent metrics (MCC, balanced accuracy, F1), because the ~0.10
-    gap observed between AUC and balanced accuracy is driven by threshold noise
-    rather than by the ranking quality of the model.
-
-    The median is used rather than the mean: it is robust to a degenerate
-    partition whose calibration block happens to be single-class (for which the
-    criterion functions return the 0.5 fallback).
-
-    Parameters
-    ----------
-    lstCalPairs : list of (arrYTrue, arrYProb)
-    strCriterion : key of DICT_THRESHOLD_CRITERIA
-
-    Returns
-    -------
-    (floatThreshold, lstPerPartitionThresholds)
-        The aggregated threshold and the individual values, so callers can log
-        the spread and the manuscript can report it.
-    """
     if strCriterion not in DICT_THRESHOLD_CRITERIA:
         raise KeyError(
             f"Unknown threshold criterion '{strCriterion}'. "
@@ -582,13 +342,6 @@ def select_threshold_averaged(lstCalPairs, strCriterion="youden"):
 
 
 def calculate_full_metrics(arrYTrue, arrYProb, floatThreshold):
-    """
-    Computes the reported metric panel.
-
-    The threshold is an explicit argument, deliberately: the previous
-    implementation recomputed Youden's J from arrYTrue inside this function,
-    which fitted the operating point on the very data being scored.
-    """
     arrYTrue = np.asarray(arrYTrue).astype(int)
     arrYProb = np.asarray(arrYProb, dtype=float)
     arrYPred = (arrYProb >= floatThreshold).astype(int)
@@ -612,21 +365,11 @@ def calculate_full_metrics(arrYTrue, arrYProb, floatThreshold):
 
 
 def parse_fold_name(strFoldName):
-    """'repeat_3_fold_1' -> (3, 1)"""
     lstParts = strFoldName.split("_")
     return int(lstParts[1]), int(lstParts[3])
 
 
 def summarise_across_repeats(dfPerFold, lstGroupCols, lstMetricKeys=None):
-    """
-    Aggregates per-fold metrics into the values reported in the manuscript.
-
-    Folds inside the same repeat share training data, so they are not
-    independent and their pooled standard deviation is not a valid dispersion
-    estimate. The reported dispersion is therefore the standard deviation
-    ACROSS the 5 repeat-level means, and the number of independent replicates
-    (n_repeats) is reported alongside it.
-    """
     lstMetricKeys = lstMetricKeys or LST_METRIC_KEYS
     dfRepeatMeans = (dfPerFold
                      .groupby(lstGroupCols + ["repeat"], as_index=False)[lstMetricKeys]
@@ -651,23 +394,7 @@ def format_mean_sd(arrValues):
     arrValues = np.asarray(arrValues, dtype=float)
     return f"{np.nanmean(arrValues):.4f} ± {np.nanstd(arrValues, ddof=1):.4f}"
 
-
-# --------------------------------------------------------------------------
-# Paired comparison over repeat-level means
-# --------------------------------------------------------------------------
 def compare_configs(dfPerFold, strMetric, strModelA, strModelB):
-    """
-    Paired comparison between two configurations evaluated on identical folds.
-
-    The primary test is a paired t-test over the five repeat-level means, which
-    are independent replicates of the whole cross-validation procedure. A
-    fold-level Wilcoxon test is reported as a secondary, ANTICONSERVATIVE
-    figure: folds inside a repeat share training data, so its p-value
-    understates the true uncertainty and must never be quoted as the headline.
-
-    Returns None when the two configurations share no folds, so callers can
-    request comparisons that may not exist in a given run.
-    """
     from scipy.stats import t as objTDist, wilcoxon
 
     dfA = dfPerFold[dfPerFold["config"] == strModelA].set_index("fold")
@@ -717,31 +444,6 @@ def compare_configs(dfPerFold, strMetric, strModelA, strModelB):
 
 def add_multiplicity_correction(dfComparisons, strFamilyColumn="family",
                                 strPColumn="p_repeat_level_ttest"):
-    """
-    Adds Benjamini-Hochberg adjusted p-values WITHIN each family of contrasts.
-
-    WHY THIS IS NECESSARY
-    ---------------------
-    The comparison grid grows fast once several encoders and several aggregation
-    strategies are on the table, while the primary test has only n=5 repeats and
-    therefore little power. With enough contrasts, some will reach p<0.05 by
-    chance alone, and a reviewer will say so.
-
-    Correction is applied per FAMILY rather than across the whole table on
-    purpose: pooling unrelated questions (encoder choice, ROI definition,
-    aggregation operator) into one correction penalises each of them for the
-    others' existence. Callers must label each row with the family it belongs
-    to, and the manuscript must declare which contrasts were pre-specified as
-    primary and which are exploratory.
-
-    Benjamini-Hochberg controls the false discovery rate, which is the
-    appropriate target for a screening table; Bonferroni would be needlessly
-    severe here.
-
-    Returns a copy of dfComparisons with two extra columns:
-      p_adjusted_bh          adjusted p-value inside the family
-      significant_adjusted   boolean at the 0.05 FDR level
-    """
     dfOut = dfComparisons.copy()
     if strFamilyColumn not in dfOut.columns:
         dfOut[strFamilyColumn] = "all"
@@ -769,14 +471,6 @@ def add_multiplicity_correction(dfComparisons, strFamilyColumn="family",
     dfOut["significant_adjusted"] = dfOut["p_adjusted_bh"] < 0.05
     return dfOut
 
-
-# --------------------------------------------------------------------------
-# Manuscript output helpers
-# --------------------------------------------------------------------------
-# Every figure and table produced by the pipeline is a potential manuscript
-# asset, so all of them are written in ENGLISH with publication defaults. These
-# helpers centralise that so no phase has to remember the settings.
-
 DICT_FIGURE_STYLE = {
     "figure.dpi": 300,
     "savefig.dpi": 300,
@@ -794,25 +488,16 @@ DICT_FIGURE_STYLE = {
     "grid.linewidth": 0.5,
 }
 
-# Colour-blind safe palette (Okabe-Ito). Journals increasingly require figures
-# to remain readable in greyscale and for deuteranopia.
 LST_PALETTE = ["#0072B2", "#D55E00", "#009E73", "#CC79A7",
                "#E69F00", "#56B4E9", "#F0E442", "#000000"]
 
 
 def apply_manuscript_style():
-    """Applies publication defaults to matplotlib. Call once per phase."""
     import matplotlib
     matplotlib.rcParams.update(DICT_FIGURE_STYLE)
 
 
 def save_figure(objFig, pathOut, lstFormats=("png", "pdf")):
-    """
-    Writes a figure in several formats.
-
-    PDF is included because Elsevier and IEEE both prefer vector artwork for
-    line figures; PNG is kept for quick inspection and for the .txt reports.
-    """
     pathOut = Path(pathOut)
     pathOut.parent.mkdir(parents=True, exist_ok=True)
     lstWritten = []
@@ -825,13 +510,6 @@ def save_figure(objFig, pathOut, lstFormats=("png", "pdf")):
 
 
 def export_manuscript_table(dfTable, pathOutBase, strCaption="", strLabel=""):
-    """
-    Writes one table as CSV, Markdown and LaTeX (booktabs).
-
-    The LaTeX file is directly \input-able in a manuscript, which removes the
-    manual copy step that is the usual source of transcription errors between a
-    results file and the text of a paper.
-    """
     pathOutBase = Path(pathOutBase)
     pathOutBase.parent.mkdir(parents=True, exist_ok=True)
 
@@ -858,7 +536,6 @@ def export_manuscript_table(dfTable, pathOutBase, strCaption="", strLabel=""):
 
 
 def encoder_metadata_frame():
-    """Registry as a DataFrame, for the manuscript's encoder description table."""
     lstRows = []
     for strKey in LST_ENCODER_ORDER:
         dictEnc = DICT_ENCODERS[strKey]
@@ -876,13 +553,6 @@ def encoder_metadata_frame():
 
 
 def parse_config_label(strConfig):
-    """
-    Splits a configuration label into its experimental factors.
-
-    Labels follow '<encoder> | <roi> ROI | <head>'. Older two-part labels
-    ('<roi> ROI | <head>') are still parsed, with the encoder defaulting to the
-    reference one, so tables from previous runs remain readable.
-    """
     lstParts = [s.strip() for s in str(strConfig).split("|")]
     dictOut = {"encoder": STR_REFERENCE_ENCODER, "roi": "n/a", "head": strConfig}
     lstRoiTokens = [p for p in lstParts if p.lower().endswith("roi")]
